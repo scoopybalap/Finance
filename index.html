@@ -2,617 +2,852 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Catatan Hutang Piutang</title>
-    
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script> 
-<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-app-pub-4170035550920357~2233842322"
-     crossorigin="anonymous"></script>
-<style>
-    /* ---------------------------------- */
-    /* GAYA UMUM & MOBILE FIRST */
-    /* ---------------------------------- */
-    :root {
-        --primary-color: #007bff; /* Biru cerah */
-        --success-color: #28a745; /* Hijau */
-        --danger-color: #dc3545; /* Merah */
-        --warning-color: #ffc107; /* Kuning */
-        --light-bg: #f8f9fa; /* Background halaman */
-        --card-bg: #ffffff; /* Background kartu */
-        --text-dark: #343a40; /* Teks gelap */
-        --text-muted: #6c757d; /* Teks redup */
-        --border-color: #dee2e6;
-        --shadow-elevation: 0 4px 12px rgba(0, 0, 0, 0.05);
-    }
-    
-    body { 
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-        margin: 0; 
-        background-color: var(--light-bg); 
-        display: flex; 
-        flex-direction: column; 
-        min-height: 100vh; 
-        height: 100vh; 
-        overflow: hidden; 
-        color: var(--text-dark);
-    }
-    
-    .header { 
-        background-color: var(--primary-color); 
-        color: white; 
-        padding: 6px 15px; 
-        text-align: center; 
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1); 
-        font-size: 1.1em;
-        position: relative; 
-        flex-shrink: 0; 
-    }
-    
-    .header h1 {
-        font-size: 1.2em; 
-        margin: 0; 
-    }
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Catatan Piutang & Utang</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #007bff;
+            --secondary-color: #6c757d;
+            --success-color: #28a745;
+            --danger-color: #dc3545;
+            --warning-color: #ffc107;
+            --info-color: #17a2b8;
+            --light-color: #f8f9fa;
+            --dark-color: #343a40;
+            --background-color: #e9ecef;
+            --card-background: #ffffff;
+            --text-color: #333;
+            --text-muted: #666;
+            --border-color: #dee2e6;
+            --header-height: 50px;
+        }
 
-    #menuToggle {
-        position: absolute; 
-        left: 15px; 
-        top: 50%; 
-        transform: translateY(-50%); 
-        font-size: 1.5em; 
-        cursor: pointer;
-        color: white;
-        padding: 5px;
-        line-height: 1;
-    }
-    
-    .container { 
-        max-width: 450px; 
-        width: 100%; 
-        margin: 0 auto; 
-        background: var(--card-bg); 
-        padding: 15px; 
-        flex-grow: 1; 
-        overflow-y: scroll; 
-        -webkit-overflow-scrolling: touch; 
-        padding-bottom: 20px; 
-        box-sizing: border-box;
-    }
-    .page { display: none; padding-top: 5px; } 
-    .page.active { display: block; }
-    
-    h2 { 
-        border-bottom: 2px solid var(--border-color); 
-        padding-bottom: 10px; 
-        color: var(--text-dark); 
-        margin-top: 15px; 
-        font-size: 1.4em; 
-        font-weight: 600;
-        margin-bottom: 20px; 
-    } 
-    h3 {
-         font-size: 1.1em;
-         color: var(--text-dark);
-         margin-top: 25px;
-         margin-bottom: 15px;
-         font-weight: 600;
-    }
-    
-    /* ---------------------------------- */
-    /* GAYA MENU SAMPING BARU (MODIFIED) */
-    /* ---------------------------------- */
-    #sideMenuModal {
-        display: none; 
-        position: fixed; 
-        z-index: 1001; 
-        left: 0; 
-        top: 0; 
-        width: 100%; 
-        height: 100%; 
-        background-color: rgba(0,0,0,0.5); 
-    }
-    #sideMenuContent {
-        width: 75%; /* Lebih kecil agar ada area klik di luar */
-        max-width: 300px;
-        height: 100%; 
-        background-color: var(--card-bg); 
-        padding: 20px 0; 
-        box-shadow: 4px 0 12px rgba(0,0,0,0.15);
-        transform: translateX(-100%); 
-        transition: transform 0.3s ease-out;
-    }
-    #sideMenuModal.open #sideMenuContent {
-        transform: translateX(0);
-    }
-    .menu-item {
-        /* PENTING: Padding vertikal lebih besar agar mudah dijangkau */
-        padding: 16px 20px; 
-        cursor: pointer;
-        /* PENTING: Ukuran font sedikit lebih besar */
-        font-size: 1.1em; 
-        font-weight: 500;
-        color: var(--text-dark);
-        transition: background-color 0.2s, color 0.2s;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        border-bottom: 1px solid var(--border-color); 
-    }
-    .menu-item:last-child {
-        border-bottom: none; 
-    }
-    .menu-item:hover, .menu-item.active {
-        background-color: var(--light-bg);
-        color: var(--primary-color);
-    }
-    .menu-item.active {
-        border-left: 5px solid var(--primary-color);
-        padding-left: 15px; 
-        font-weight: 600;
-    }
+        * {
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
 
-    /* ---------------------------------- */
-    /* GAYA DASHBOARD & CARD (TETAP) */
-    /* ---------------------------------- */
-    #mainDashboard { display: flex; flex-wrap: wrap; justify-content: space-between; margin-bottom: 20px; }
-    .summary-card { 
-        flex-basis: 100%; 
-        padding: 15px; 
-        border-radius: 12px; 
-        text-align: left; 
-        margin-bottom: 12px; 
-        box-shadow: var(--shadow-elevation);
-        transition: all 0.3s;
-    }
-    .summary-card h3 { 
-        margin-top: 0; 
-        font-size: 0.9em; 
-        color: var(--text-dark); 
-        font-weight: 500;
-        margin-bottom: 5px;
-    } 
-    .summary-card p { 
-        font-size: 1.4em; 
-        font-weight: bold; 
-        margin: 0; 
-    } 
-    .card-piutang { background-color: #e6f7ef; border-left: 5px solid var(--success-color); } 
-    .card-utang { background-color: #fcebeb; border-left: 5px solid var(--danger-color); } 
-    .card-networth { background-color: #fff8e1; border-left: 5px solid var(--warning-color); font-size: 1.1em; }
-    
-    /* Layout kolom untuk mobile */
-    @media (min-width: 350px) {
-        .summary-card { flex-basis: 48%; }
-        .card-networth { flex-basis: 100%; margin-top: 5px; }
-    }
-    
-    /* ---------------------------------- */
-    /* GAYA LIST TRANSAKSI (TETAP) */
-    /* ---------------------------------- */
-    .transaction-list-container {
-        border: none; 
-        padding: 0; 
-        border-radius: 0; 
-        background-color: var(--light-bg);
-    }
-    
-    .transaction-list-item {
-        display: flex;
-        align-items: center;
-        padding: 15px;
-        border-radius: 8px;
-        margin-bottom: 10px;
-        background-color: var(--card-bg);
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-        cursor: pointer;
-        transition: transform 0.1s, box-shadow 0.1s;
-    }
-    .transaction-list-item:active {
-        transform: scale(0.98);
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            overflow-x: hidden;
+            font-size: 14px;
+        }
 
-    .avatar-icon {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        background-color: #e9ecef;
-        color: var(--primary-color);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        font-size: 1.4em;
-        font-weight: 600;
-        margin-right: 15px;
-        flex-shrink: 0;
-    }
-    .info-section { flex-grow: 1; min-width: 0; }
-    .info-section strong { font-size: 1.1em; color: var(--text-dark); }
-    .info-section p { font-size: 0.8em; }
-    
-    .status-badge {
-        padding: 3px 8px;
-        border-radius: 12px;
-        font-size: 0.7em;
-        font-weight: 600;
-        margin-right: 5px;
-    }
-    .status-active { background-color: #d1ecf1; color: #008080; } 
-    .status-late { background-color: #f8d7da; color: var(--danger-color); } 
-    
-    .amount-section { text-align: right; flex-shrink: 0; margin-left: 10px; }
-    .amount-section .remaining-amount { font-size: 1.2em; font-weight: bold; color: var(--success-color); }
-    .transaction-list-item.utang .amount-section .remaining-amount { color: var(--danger-color); }
-    .amount-section .due-info { font-size: 0.75em; color: var(--text-muted); margin-top: 2px; }
+        /* ---------------------------------- */
+        /* HEADER & NAVIGATION */
+        /* ---------------------------------- */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: var(--header-height);
+            background-color: var(--primary-color);
+            color: white;
+            padding: 0 15px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
 
-    /* ---------------------------------- */
-    /* GAYA FORM & CONTROLS (TETAP) */
-    /* ---------------------------------- */
-    .controls-container {
-        margin-bottom: 15px;
-        padding: 10px 0;
-        border-bottom: 1px solid var(--border-color);
-    }
-    .search-container input {
-        width: 100%;
-        padding: 10px 15px;
-        border: 1px solid var(--border-color);
-        border-radius: 25px;
-        box-sizing: border-box;
-        font-size: 1em;
-        margin-bottom: 10px;
-        transition: border-color 0.3s;
-    }
-    .search-container input:focus {
-        border-color: var(--primary-color);
-        outline: none;
-    }
-    
-    .sort-controls {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        font-size: 0.9em;
-        color: var(--text-muted);
-    }
-    .sort-controls select {
-        padding: 8px;
-        border: 1px solid var(--border-color);
-        border-radius: 8px;
-        font-size: 0.9em;
-        background-color: white;
-    }
-    
-    label {
-         display: block;
-         margin-bottom: 5px;
-         font-weight: 500;
-         color: var(--text-dark);
-         font-size: 0.95em;
-    }
+        .header h1 {
+            font-size: 1.2em;
+            margin: 0;
+            font-weight: bold;
+        }
 
-    input[type="text"], input[type="number"], input[type="date"], select { 
-        width: 100%; 
-        padding: 12px; 
-        border: 1px solid var(--border-color); 
-        border-radius: 8px; 
-        box-sizing: border-box; 
-        font-size: 1em; 
-        margin-bottom: 15px;
-        background-color: var(--light-bg);
-    }
-    
-    button { 
-        padding: 12px 18px; 
-        background-color: var(--primary-color); 
-        color: white; 
-        border: none; 
-        border-radius: 8px; 
-        cursor: pointer; 
-        margin-top: 10px;
-        font-size: 1em; 
-        font-weight: 600;
-        transition: background-color 0.2s;
-    }
-    button:hover {
-         background-color: #0056b3;
-    }
-    
-    /* Gaya untuk tombol Aksi di Modal */
-    #modalActions button {
-        width: 100%;
-        margin-bottom: 8px;
-        padding: 10px;
-    }
+        .menu-toggle {
+            font-size: 1.5em;
+            cursor: pointer;
+            padding: 5px;
+        }
 
-    /* ---------------------------------- */
-    /* GAYA MODAL (TETAP & BARU) */
-    /* ---------------------------------- */
-    .modal-detail-row {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: 8px;
-        border-bottom: 1px dotted var(--border-color);
-        padding-bottom: 5px;
-        font-size: 0.95em;
-    }
-    #modalContent .payment-history-list {
-        max-height: 150px;
-        overflow-y: auto;
-        padding: 5px;
-        border: 1px solid #eee;
-        border-radius: 5px;
-    }
-    #modalContent .payment-history-list div {
-        display: flex;
-        justify-content: space-between;
-        padding: 5px 0;
-        border-bottom: 1px dotted #f1f1f1;
-        font-size: 0.85em;
-        align-items: center; 
-    }
-    
-    /* GAYA UNTUK MODAL INPUT TANGGAL CICILAN */
-    #paymentDateModal {
-        display: none; 
-        position: fixed; 
-        z-index: 1002; 
-        left: 0; 
-        top: 0; 
-        width: 100%; 
-        height: 100%; 
-        background-color: rgba(0,0,0,0.6); 
-        align-items: center; 
-        justify-content: center;
-    }
-    #paymentDateContent {
-        background-color: var(--card-bg);
-        padding: 20px;
-        border-radius: 12px;
-        width: 90%;
-        max-width: 350px;
-        box-shadow: var(--shadow-elevation);
-    }
-    #paymentDateContent input[type="date"] {
-        padding: 12px;
-        margin-bottom: 15px;
-        background-color: var(--light-bg);
-        border: 1px solid var(--border-color);
-        border-radius: 8px;
-        font-size: 1em;
-    }
-    .payment-modal-actions {
-        display: flex;
-        justify-content: flex-end;
-        gap: 10px;
-    }
-    .payment-modal-actions button {
-        margin-top: 0;
-        padding: 10px 15px;
-        font-size: 0.9em;
-    }
-    .payment-modal-actions #confirmPaymentBtn {
-        background-color: var(--success-color);
-    }
-    .payment-modal-actions #cancelPaymentBtn {
-        background-color: var(--text-muted);
-    }
+        /* ---------------------------------- */
+        /* SIDE MENU (DRAWER) */
+        /* ---------------------------------- */
+        .side-menu-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1100;
+        }
 
-    /* ---------------------------------- */
-    /* GAYA FAB (BARU/MODIFIKASI) */
-    /* ---------------------------------- */
-    #fabAddTransaction {
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        width: 60px;
-        height: 60px;
-        border-radius: 50%;
-        font-size: 2em;
-        line-height: 1;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-        z-index: 10;
-        background-color: var(--primary-color);
-        color: white;
-        border: none;
-        cursor: pointer;
-        transition: opacity 0.3s, transform 0.3s;
-        opacity: 0; /* Sembunyikan secara default */
-        transform: scale(0.8); /* Perkecil sedikit saat tersembunyi */
-        pointer-events: none; /* Pastikan tidak bisa diklik saat tersembunyi */
-    }
+        .side-menu-content {
+            width: 70%;
+            max-width: 300px;
+            height: 100%;
+            background-color: var(--card-background);
+            position: absolute;
+            top: 0;
+            left: 0;
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.5);
+            transform: translateX(-100%);
+            transition: transform 0.3s ease-in-out;
+            padding-top: 20px;
+        }
+        
+        .side-menu-header {
+             padding: 15px;
+             background-color: var(--primary-color);
+             color: white;
+             font-size: 1.2em;
+             font-weight: bold;
+             margin-bottom: 10px;
+        }
 
-    #fabAddTransaction.show {
-        opacity: 1; /* Tampilkan */
-        transform: scale(1); /* Ukuran normal */
-        pointer-events: auto; /* Bisa diklik */
-    }
-</style>
+        .menu-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            cursor: pointer;
+            color: var(--text-color);
+            border-bottom: 1px solid var(--border-color);
+            transition: background-color 0.1s;
+        }
+        
+        .menu-item:first-of-type {
+             border-top: 1px solid var(--border-color);
+        }
+
+        .menu-item:hover, .menu-item.active {
+            background-color: var(--light-color);
+            color: var(--primary-color);
+        }
+
+        .menu-item i {
+            margin-right: 15px;
+            width: 20px;
+            text-align: center;
+        }
+        
+        .menu-footer {
+             position: absolute;
+             bottom: 0;
+             width: 100%;
+             padding: 15px;
+             font-size: 0.8em;
+             text-align: center;
+             color: var(--text-muted);
+        }
+
+        /* ---------------------------------- */
+        /* MAIN CONTENT & PAGES */
+        /* ---------------------------------- */
+        .main-content {
+            padding-top: var(--header-height);
+            height: calc(100% - var(--header-height));
+            position: relative;
+        }
+
+        .page {
+            display: none;
+            padding: 15px;
+            min-height: 100%;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        /* ---------------------------------- */
+        /* HOME PAGE */
+        /* ---------------------------------- */
+        .dashboard-section {
+            background-color: var(--card-background);
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+
+        .dashboard-section h2 {
+            font-size: 1.1em;
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 5px;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+
+        .summary-dashboard {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .summary-card {
+            background-color: var(--light-color);
+            padding: 12px;
+            border-radius: 6px;
+            flex: 1 1 calc(50% - 10px);
+            min-width: 140px;
+            text-align: center;
+        }
+        
+        .summary-card h3 {
+             font-size: 0.9em;
+             color: var(--text-muted);
+             margin: 0 0 5px 0;
+             font-weight: normal;
+        }
+
+        .summary-card p {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin: 0;
+        }
+
+        .card-piutang {
+            border-left: 5px solid var(--success-color);
+        }
+        
+        .card-utang {
+            border-left: 5px solid var(--danger-color);
+        }
+        
+        .card-networth {
+             flex: 1 1 100%;
+             border-left: 5px solid var(--primary-color);
+             margin-top: 5px;
+        }
+        
+        .card-networth p {
+            font-size: 1.4em;
+        }
+
+        .chart-container {
+             height: 250px;
+             position: relative;
+        }
+
+        /* ---------------------------------- */
+        /* LISTS (Piutang, Utang, History) */
+        /* ---------------------------------- */
+        
+        .list-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            align-items: center;
+        }
+        
+        .list-controls input[type="text"] {
+             flex-grow: 1;
+             padding: 8px;
+             border: 1px solid var(--border-color);
+             border-radius: 4px;
+             font-size: 1em;
+        }
+        
+        .list-controls select {
+             padding: 8px;
+             border: 1px solid var(--border-color);
+             border-radius: 4px;
+        }
+
+        .transaction-list-item {
+            display: flex;
+            align-items: center;
+            background-color: var(--card-background);
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+            cursor: pointer;
+            transition: transform 0.1s;
+            border-left: 5px solid transparent;
+        }
+
+        .transaction-list-item:active {
+            transform: scale(0.99);
+        }
+
+        .transaction-list-item.piutang {
+            border-left-color: var(--success-color);
+        }
+
+        .transaction-list-item.utang {
+            border-left-color: var(--danger-color);
+        }
+
+        .avatar-icon {
+            width: 40px;
+            height: 40px;
+            background-color: var(--primary-color);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1em;
+            font-weight: bold;
+            margin-right: 15px;
+        }
+
+        .info-section {
+            flex-grow: 1;
+        }
+        
+        .info-section strong {
+             font-size: 1.1em;
+             display: block;
+             margin-bottom: 3px;
+        }
+
+        .amount-section {
+            text-align: right;
+            line-height: 1.3;
+        }
+
+        .remaining-amount {
+            font-size: 1.1em;
+            font-weight: bold;
+            margin-bottom: 3px;
+        }
+        
+        .transaction-list-item.piutang .remaining-amount {
+             color: var(--success-color);
+        }
+        
+        .transaction-list-item.utang .remaining-amount {
+             color: var(--danger-color);
+        }
+
+        .due-info {
+            font-size: 0.8em;
+            color: var(--text-muted);
+        }
+        
+        .status-badge {
+             font-size: 0.7em;
+             padding: 3px 6px;
+             border-radius: 4px;
+             font-weight: bold;
+             display: inline-block;
+             margin-top: 5px;
+        }
+        
+        .status-late {
+             background-color: #f8d7da; /* light red */
+             color: var(--danger-color);
+        }
+        
+        .status-active {
+             background-color: #cce5ff; /* light blue */
+             color: var(--primary-color);
+        }
+
+        /* ---------------------------------- */
+        /* FORM PAGE */
+        /* ---------------------------------- */
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 1em;
+        }
+        
+        .form-group input[type="number"] {
+             -moz-appearance: textfield; /* Firefox */
+        }
+        .form-group input::-webkit-outer-spin-button,
+        .form-group input::-webkit-inner-spin-button {
+             -webkit-appearance: none;
+             margin: 0; /* Chrome, Safari, Edge */
+        }
+
+        .form-info {
+            background-color: var(--info-color);
+            color: white;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            font-size: 0.9em;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background-color 0.1s;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        /* ---------------------------------- */
+        /* DETAIL MODAL (Pop-up) */
+        /* ---------------------------------- */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+            padding-top: 60px;
+        }
+
+        .modal-content-detail {
+            background-color: var(--card-background);
+            margin: 10% auto;
+            padding: 20px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            position: relative;
+        }
+
+        .close-btn {
+            color: var(--text-muted);
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            line-height: 20px;
+        }
+
+        .close-btn:hover,
+        .close-btn:focus {
+            color: var(--dark-color);
+            text-decoration: none;
+            cursor: pointer;
+        }
+        
+        .modal-title {
+             font-size: 1.2em;
+             font-weight: bold;
+             margin-bottom: 15px;
+             border-bottom: 2px solid var(--border-color);
+             padding-bottom: 5px;
+        }
+
+        .modal-detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px dashed var(--light-color);
+            font-size: 0.95em;
+        }
+        
+        .modal-detail-row span {
+             color: var(--text-muted);
+        }
+        
+        .modal-detail-row strong {
+             font-weight: bold;
+             text-align: right;
+        }
+
+        .payment-history-list {
+            max-height: 150px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+
+        .payment-history-list div {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            border-bottom: 1px dotted var(--light-color);
+            font-size: 0.9em;
+        }
+        
+        .modal-actions {
+             margin-top: 20px;
+             display: flex;
+             flex-direction: column;
+             gap: 10px;
+        }
+        
+        .modal-actions button {
+             padding: 10px;
+        }
+        
+        /* ---------------------------------- */
+        /* PAYMENT DATE MODAL */
+        /* ---------------------------------- */
+        #paymentDateModal {
+             display: none;
+             align-items: center; /* Center vertically */
+             justify-content: center; /* Center horizontally */
+             background-color: rgba(0,0,0,0.7);
+        }
+        
+        .modal-content-payment {
+             background-color: var(--card-background);
+             padding: 25px;
+             border-radius: 8px;
+             width: 80%;
+             max-width: 350px;
+             text-align: center;
+        }
+        
+        .modal-content-payment h3 {
+             margin-top: 0;
+             font-size: 1.1em;
+             color: var(--primary-color);
+        }
+        
+        #paymentAmountDisplay {
+             font-size: 1.2em;
+             font-weight: bold;
+             margin-bottom: 15px;
+             color: var(--success-color);
+        }
+        
+        #datePaidInput {
+             margin-bottom: 20px;
+        }
+        
+        .payment-modal-actions {
+             display: flex;
+             gap: 10px;
+        }
+        
+        .payment-modal-actions button {
+             flex: 1;
+             padding: 10px;
+        }
+        
+        /* ---------------------------------- */
+        /* FAB (Floating Action Button) */
+        /* ---------------------------------- */
+        .fab {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            background-color: var(--danger-color);
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 50px;
+            font-size: 1.5em;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            z-index: 900;
+            transition: transform 0.3s, opacity 0.3s;
+            opacity: 0;
+            transform: scale(0);
+        }
+        
+        .fab.show {
+             opacity: 1;
+             transform: scale(1);
+        }
+        
+        /* ---------------------------------- */
+        /* SUMMARY PAGE */
+        /* ---------------------------------- */
+        .summary-page-content {
+             display: flex;
+             flex-direction: column;
+             gap: 15px;
+        }
+        
+        .summary-block {
+             background-color: var(--card-background);
+             padding: 15px;
+             border-radius: 8px;
+             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+        
+        .summary-block h3 {
+             font-size: 1em;
+             color: var(--primary-color);
+             margin-top: 0;
+             border-bottom: 1px solid var(--border-color);
+             padding-bottom: 5px;
+             margin-bottom: 10px;
+        }
+        
+        .summary-row {
+             display: flex;
+             justify-content: space-between;
+             padding: 5px 0;
+             font-size: 0.95em;
+        }
+        
+        .summary-row span:first-child {
+             color: var(--text-muted);
+        }
+        
+        .summary-row strong {
+             font-weight: bold;
+        }
+        
+        .summary-row.networth strong {
+             font-size: 1.2em;
+        }
+
+    </style>
 </head>
 <body>
 
     <div class="header">
-        <div id="menuToggle">☰</div>
-        <h1>Catatan Hutang Piutang</h1>
-    </div>
-    
-    <div style="text-align: center; padding: 5px 0; background-color: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-        <ins class="adsbygoogle"
-             style="display:inline-block;width:320px;height:50px"
-             data-ad-client="ca-app-pub-4170035550920357"
-             data-ad-slot="7593980213"></ins>
-        <script>
-             (adsbygoogle = window.adsbygoogle || []).push({});
-        </script>
-    </div>
-    <div id="sideMenuModal">
-        <div id="sideMenuContent">
-            <h3 style="padding: 0 20px;">Menu Aplikasi</h3>
-            <hr style="margin-bottom: 20px;">
-            <div class="menu-item active" data-page="homePage">📊 Beranda</div>
-            <div class="menu-item" data-page="piutangPage">💰 Piutang</div>
-            <div class="menu-item" data-page="utangPage">💸 Utang</div>
-            <div class="menu-item" data-page="historyPage">🧾 Riwayat</div>
-            <div class="menu-item" data-page="summaryPage">📈 Ringkasan & Export</div>
-            <div class="menu-item" data-page="formPage">➕ Tambah Transaksi</div>
+        <div class="menu-toggle" id="menuToggle">
+            <i class="fas fa-bars"></i>
         </div>
+        <h1>Catatan Keuangan</h1>
     </div>
-    <div class="container">
-        
-        <div id="homePage" class="page active">
-            <h2>Beranda 📊</h2>
-            <div id="mainDashboard"></div>
-            
-            <h3 style="margin-top: 25px;">Grafik Status Keuangan 📈</h3>
-            <div id="chartArea" style="height: 250px; background-color: white; padding: 10px; border-radius: 12px; box-shadow: var(--shadow-elevation); margin-bottom: 20px;">
-                <canvas id="piutangChart"></canvas>
+
+    <div class="side-menu-modal" id="sideMenuModal">
+        <div class="side-menu-content" id="sideMenuContent">
+            <div class="side-menu-header">MENU UTAMA</div>
+            <div class="menu-item active" data-page="homePage">
+                <i class="fas fa-home"></i> Beranda
             </div>
-            
-            <h3>Transaksi Aktif Terbaru</h3>
-            <div id="latestTransactions" class="transaction-list-container">
-                <p style="text-align: center; color: var(--text-muted);">Memuat data...</p>
+            <div class="menu-item" data-page="piutangPage">
+                <i class="fas fa-arrow-circle-up"></i> Daftar Piutang
+            </div>
+            <div class="menu-item" data-page="utangPage">
+                <i class="fas fa-arrow-circle-down"></i> Daftar Utang
+            </div>
+            <div class="menu-item" data-page="formPage">
+                <i class="fas fa-plus-circle"></i> Tambah Transaksi
+            </div>
+            <div class="menu-item" data-page="historyPage">
+                <i class="fas fa-history"></i> Riwayat Lunas
+            </div>
+            <div class="menu-item" data-page="summaryPage">
+                <i class="fas fa-chart-pie"></i> Ringkasan Total
+            </div>
+            <div class="menu-item" onclick="exportToCSV()">
+                <i class="fas fa-file-csv"></i> Export Data (CSV)
+            </div>
+            <div class="menu-footer">
+                Versi 1.1
             </div>
         </div>
+    </div>
+
+    <div class="main-content">
         
-        <div id="formPage" class="page">
-            <h2>Tambah Transaksi Baru ➕</h2>
+        <div class="page active" id="homePage">
+            <div class="dashboard-section">
+                <h2>Ringkasan Keuangan Aktif</h2>
+                <div class="summary-dashboard" id="mainDashboard">
+                    </div>
+            </div>
+
+            <div class="dashboard-section">
+                <h2>Distribusi Piutang & Utang</h2>
+                <div class="chart-container">
+                    <canvas id="piutangChart"></canvas>
+                </div>
+            </div>
+
+            <div class="dashboard-section">
+                <h2>Jatuh Tempo Mendekat (Aktif)</h2>
+                <div id="latestTransactions">
+                    </div>
+            </div>
+        </div>
+
+        <div class="page" id="piutangPage">
+            <h2>Daftar Piutang Aktif</h2>
+            <div class="list-controls">
+                 <input type="text" id="searchPiutang" placeholder="Cari nama..." onkeyup="filterTransactionList('piutang')">
+                 <select id="sortPiutang" onchange="filterTransactionList('piutang')">
+                     <option value="due_asc">Jatuh Tempo (Terdekat)</option>
+                     <option value="due_desc">Jatuh Tempo (Terjauh)</option>
+                     <option value="amount_desc">Sisa (Terbesar)</option>
+                 </select>
+            </div>
+            <div id="piutangList">
+                </div>
+        </div>
+
+        <div class="page" id="utangPage">
+            <h2>Daftar Utang Aktif</h2>
+            <div class="list-controls">
+                 <input type="text" id="searchUtang" placeholder="Cari nama..." onkeyup="filterTransactionList('utang')">
+                 <select id="sortUtang" onchange="filterTransactionList('utang')">
+                     <option value="due_asc">Jatuh Tempo (Terdekat)</option>
+                     <option value="due_desc">Jatuh Tempo (Terjauh)</option>
+                     <option value="amount_desc">Sisa (Terbesar)</option>
+                 </select>
+            </div>
+            <div id="utangList">
+                </div>
+        </div>
+        
+        <div class="page" id="historyPage">
+            <h2>Riwayat Transaksi Lunas</h2>
+            <div class="list-controls">
+                 <input type="text" id="searchHistory" placeholder="Cari nama..." onkeyup="filterTransactionList('history')">
+                 <select id="sortHistory" onchange="filterTransactionList('history')">
+                     <option value="lunas_desc">Tanggal Lunas (Terbaru)</option>
+                     <option value="principal_desc">Pokok (Terbesar)</option>
+                 </select>
+            </div>
+            <div id="historyList">
+                </div>
+        </div>
+        
+        <div class="page" id="summaryPage">
+            <h2>Ringkasan Total Keuangan</h2>
+            <div class="summary-page-content">
+                <div class="summary-block">
+                    <h3>Total Piutang (Klaim)</h3>
+                    <div class="summary-row">
+                        <span>Total Awal (Lunas + Aktif):</span> 
+                        <strong id="summaryPiutangAwal">Rp 0</strong>
+                    </div>
+                    <div class="summary-row">
+                        <span>Sisa Piutang Aktif:</span> 
+                        <strong style="color: var(--success-color);" id="summaryPiutangSisa">Rp 0</strong>
+                    </div>
+                </div>
+                
+                <div class="summary-block">
+                    <h3>Total Utang (Kewajiban)</h3>
+                    <div class="summary-row">
+                        <span>Total Awal (Lunas + Aktif):</span> 
+                        <strong id="summaryUtangAwal">Rp 0</strong>
+                    </div>
+                    <div class="summary-row">
+                        <span>Sisa Utang Aktif:</span> 
+                        <strong style="color: var(--danger-color);" id="summaryUtangSisa">Rp 0</strong>
+                    </div>
+                </div>
+                
+                <div class="summary-block">
+                    <h3>Net Worth (Nilai Bersih)</h3>
+                    <div class="summary-row networth">
+                        <span>Net Worth Akhir (Piutang Sisa - Utang Sisa):</span> 
+                        <strong id="summaryNetWorth">Rp 0</strong>
+                    </div>
+                </div>
+                
+                <button onclick="exportToCSV()" style="background-color: var(--secondary-color);">
+                     <i class="fas fa-file-csv"></i> Export Semua Data ke CSV
+                </button>
+            </div>
+        </div>
+
+
+        <div class="page" id="formPage">
+            <h2>Tambah Transaksi Baru</h2>
             <form id="transactionForm">
-                <div><label for="type">Tipe Transaksi:</label><select id="type" required><option value="piutang">Piutang (Saya Memberi Pinjaman)</option><option value="utang">Utang (Saya Menerima Pinjaman)</option></select></div>
-                <div><label for="person">Nama Pihak/Orang:</label><input type="text" id="person" required></div>
-                <div><label for="principal">Jumlah Pokok (Rp):</label><input type="text" id="principal" required onkeyup="formatInputRupiah(this); updateInstallmentEstimate()"></div>
+                <div class="form-group">
+                    <label for="type">Tipe Transaksi:</label>
+                    <select id="type" required>
+                        <option value="piutang">Piutang (Orang berutang pada Anda)</option>
+                        <option value="utang">Utang (Anda berutang pada orang)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="person">Nama Pihak Kedua:</label>
+                    <input type="text" id="person" required placeholder="Nama orang/perusahaan">
+                </div>
                 
-                <div><label for="startDate">Tanggal Mulai Pinjam:</label><input type="date" id="startDate" required onchange="calculateDueDate()"></div>
+                <div class="form-group">
+                    <label for="principal">Pokok Pinjaman (Rp):</label>
+                    <input type="text" id="principal" required placeholder="Contoh: 1.000.000" oninput="formatInputRupiah(this); updateInstallmentEstimate();">
+                </div>
+
+                <div class="form-group">
+                    <label for="interestRate">Suku Bunga (%) per Tenor (Flat):</label>
+                    <input type="number" id="interestRate" required value="0" min="0" step="0.01" oninput="updateInstallmentEstimate()">
+                    <div class="form-info">Tulis '0' jika tanpa bunga. Bunga dihitung dari Pokok Pinjaman.</div>
+                </div>
                 
-                <div><label for="interestRate">Suku Bunga (% per Bulan):</label><input type="text" id="interestRate" min="0" value="0" required onkeyup="updateInstallmentEstimate()"></div>
-                <div><label for="installmentsCount">Tenor/Jumlah Cicilan (Bulan):</label><input type="number" id="installmentsCount" min="1" value="1" required onchange="updateInstallmentEstimate(); calculateDueDate()"></div>
-                <div id="installmentEstimate" style="padding: 10px; background-color: #e3f2fd; border: 1px solid #bbdefb; border-radius: 8px; margin-bottom: 15px; display: none;"></div>
+                <div class="form-group">
+                    <label for="installmentsCount">Tenor/Jumlah Cicilan (Bulan):</label>
+                    <input type="number" id="installmentsCount" required min="1" value="1" oninput="updateInstallmentEstimate(); calculateDueDate();">
+                    <div id="installmentEstimate" style="display: none; margin-top: 5px;"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="startDate">Tanggal Mulai Pinjaman:</label>
+                    <input type="date" id="startDate" required onchange="calculateDueDate()">
+                </div>
                 
-                <div><label>Tanggal Jatuh Tempo Terakhir:</label><p id="finalDueDateDisplay" style="padding: 12px; border: 1px solid #ddd; background-color: #f8f8f8; border-radius: 8px; margin-top: 0;"></p></div>
-                
-                <button type="submit" style="width: 100%;">Catat Transaksi</button>
+                <div class="form-group form-info">
+                    <label>Estimasi Tanggal Jatuh Tempo Akhir:</label>
+                    <strong id="finalDueDateDisplay">Pilih tanggal mulai dan tenor/cicilan.</strong>
+                </div>
+
+                <button type="submit">Catat Transaksi</button>
             </form>
         </div>
 
-        <div id="piutangPage" class="page">
-            <h2>Daftar Piutang Aktif 💰</h2>
-            <div class="controls-container">
-                <div class="search-container"><input type="text" id="searchPiutang" placeholder="Cari Piutang berdasarkan nama..." onkeyup="filterTransactionList('piutang')"></div>
-                <div class="sort-controls">
-                    <label for="sortPiutang">Urutkan:</label>
-                    <select id="sortPiutang" onchange="filterTransactionList('piutang')">
-                        <option value="due_asc">Jatuh Tempo Terdekat</option>
-                        <option value="due_desc">Jatuh Tempo Terlama</option>
-                        <option value="amount_desc">Sisa (Terbesar)</option>
-                    </select>
-                </div>
-            </div>
-            <div id="piutangList" class="transaction-list-container"><p>Memuat data piutang...</p></div>
-        </div>
-
-        <div id="utangPage" class="page">
-            <h2>Daftar Utang Aktif 💸</h2>
-            <div class="controls-container">
-                <div class="search-container"><input type="text" id="searchUtang" placeholder="Cari Utang berdasarkan nama..." onkeyup="filterTransactionList('utang')"></div>
-                <div class="sort-controls">
-                    <label for="sortUtang">Urutkan:</label>
-                    <select id="sortUtang" onchange="filterTransactionList('utang')">
-                        <option value="due_asc">Jatuh Tempo Terdekat</option>
-                        <option value="due_desc">Jatuh Tempo Terlama</option>
-                        <option value="amount_desc">Sisa (Terbesar)</option>
-                    </select>
-                </div>
-            </div>
-            <div id="utangList" class="transaction-list-container"><p>Memuat data utang...</p></div>
-        </div>
-        
-        <div id="historyPage" class="page">
-            <h2>Riwayat Transaksi Lunas 🧾</h2>
-            <div class="controls-container">
-                <div class="search-container"><input type="text" id="searchHistory" placeholder="Cari Riwayat berdasarkan nama..." onkeyup="filterTransactionList('history')"></div>
-                <div class="sort-controls">
-                    <label for="sortHistory">Urutkan:</label>
-                    <select id="sortHistory" onchange="filterTransactionList('history')">
-                        <option value="lunas_desc">Tanggal Lunas Terbaru</option>
-                        <option value="principal_desc">Pokok (Terbesar)</option>
-                    </select>
-                </div>
-            </div>
-            <div id="historyList" class="transaction-list-container"><p>Memuat riwayat lunas...</p></div>
-        </div>
-
-        <div id="summaryPage" class="page">
-            <h2>Ringkasan & Export Data 📈</h2>
-            
-            <div style="background-color: #e9ecef; padding: 15px; border-radius: 12px; margin-bottom: 20px;">
-                <p style="margin-top:0;">Export data transaksi aktif dan lunas ke dalam format CSV (kompatibel dengan Excel) untuk analisis lebih lanjut.</p>
-                <button onclick="exportToCSV()" style="background-color: var(--success-color); width: 100%;">Export Semua Data ke CSV</button>
-            </div>
-
-            
-            <h3>Ringkasan Saldo Global</h3>
-            <div id="balanceSummary" style="border: 1px solid var(--border-color); padding: 15px; border-radius: 12px; background-color: var(--card-bg);">
-                <div class="modal-detail-row"><span>Total Piutang (Awal):</span> <strong id="summaryPiutangAwal">Rp 0</strong></div>
-                <div class="modal-detail-row"><span>Sisa Piutang (Aktif):</span> <strong id="summaryPiutangSisa">Rp 0</strong></div>
-                <hr style="border: none; border-top: 1px dashed #eee; margin: 10px 0;">
-                <div class="modal-detail-row"><span>Total Utang (Awal):</span> <strong id="summaryUtangAwal">Rp 0</strong></div>
-                <div class="modal-detail-row"><span>Sisa Utang (Aktif):</span> <strong id="summaryUtangSisa">Rp 0</strong></div>
-                <hr style="border: none; border-top: 2px solid var(--border-color); margin: 15px 0;">
-                <div class="modal-detail-row" style="font-size: 1.1em; font-weight: bold; padding-bottom: 0; border-bottom: none;"><span>Net Worth (Bersih Aktif):</span> <strong id="summaryNetWorth">Rp 0</strong></div>
-            </div>
-        </div>
-
     </div>
-
-    <div id="transactionDetailModal" style="
-        display: none; 
-        position: fixed; 
-        z-index: 1000; 
-        left: 0; 
-        top: 0; 
-        width: 100%; 
-        height: 100%; 
-        overflow: auto; 
-        background-color: rgba(0,0,0,0.6); 
-    ">
-        <div id="detailModalContent" style="
-            background-color: var(--card-bg);
-            margin: 10% auto; 
-            padding: 20px;
-            border: 1px solid #888;
-            width: 90%; 
-            max-width: 400px;
-            border-radius: 12px;
-            box-shadow: var(--shadow-elevation);
-        ">
-            <span onclick="closeDetailModal()" style="
-                color: #aaa; 
-                float: right; 
-                font-size: 32px; 
-                font-weight: bold;
-                cursor: pointer;
-            ">&times;</span>
-            <h3 id="modalTitle" style="margin-top: 0; padding-bottom: 10px; border-bottom: 2px solid var(--border-color);">Detail Transaksi</h3>
-            <div id="modalContent">
-                </div>
-            <div id="modalActions" style="margin-top: 15px;">
-                </div>
+    
+    <div class="fab" id="fabAddTransaction" onclick="navigateTo('formPage')">
+        <i class="fas fa-plus"></i>
+    </div>
+    
+    <div id="transactionDetailModal" class="modal">
+        <div class="modal-content-detail">
+            <span class="close-btn" onclick="closeDetailModal()">&times;</span>
+            <div class="modal-title" id="modalTitle"></div>
+            <div id="modalContent"></div>
+            <div class="modal-actions" id="modalActions"></div>
         </div>
     </div>
     
-    <div id="paymentDateModal">
-        <div id="paymentDateContent">
-            <h3 style="margin-top: 0; margin-bottom: 15px;">Catat Tanggal Pembayaran</h3>
-            <p id="paymentAmountDisplay" style="font-size: 1.1em; font-weight: bold; margin-bottom: 15px; color: var(--primary-color);">Rp 0</p>
-            <label for="datePaidInput">Tanggal Pembayaran:</label>
-            <input type="date" id="datePaidInput" required>
+    <div id="paymentDateModal" class="modal">
+        <div class="modal-content-payment">
+            <h3>Catat Pembayaran</h3>
+            <div id="paymentAmountDisplay" style="color: var(--success-color);"></div>
+            <div class="form-group">
+                <label for="datePaidInput">Tanggal Pembayaran:</label>
+                <input type="date" id="datePaidInput" required>
+            </div>
             <div class="payment-modal-actions">
-                <button id="cancelPaymentBtn" onclick="closePaymentModal()">BATAL</button>
-                <button id="confirmPaymentBtn" >OKE</button>
+                <button style="background-color: var(--secondary-color);" onclick="closePaymentModal()">Batal</button>
+                <button id="confirmPaymentBtn" style="background-color: var(--success-color);">Konfirmasi Bayar</button>
             </div>
         </div>
     </div>
 
-    <button id="fabAddTransaction" onclick="navigateTo('formPage')">+</button>
 
     <script>
     let transactions = [];
@@ -793,30 +1028,64 @@
             return '';
         }
 
-        const startDate = new Date(startDateValue);
-        // Tambahkan satu hari agar perhitungan bulan menjadi akurat
-        startDate.setDate(startDate.getDate() + 1); 
+        // Gunakan fungsi Date dengan T00:00:00 untuk menghindari masalah zona waktu
+        const startDate = new Date(startDateValue + 'T00:00:00'); 
         
         if (isNaN(startDate)) {
             finalDueDateDisplay.textContent = 'Tanggal mulai tidak valid.';
             return '';
         }
         
+        // --- LOGIKA PERHITUNGAN JATUH TEMPO AKHIR ---
         const finalDueDate = new Date(startDate);
-        // Hapus 1 bulan karena setMonth akan menghitung dari bulan 0 (dimana cicilan pertama sudah jatuh tempo)
-        finalDueDate.setMonth(finalDueDate.getMonth() + installments - 1); 
+        const startDay = startDate.getDate();
         
-        // Atur kembali tanggal ke 1 sebelum menampilkan (optional, to represent end of month or start of next period)
-        const dayOfMonth = new Date(startDateValue).getDate();
-        finalDueDate.setDate(dayOfMonth);
+        // Set ke bulan berikutnya (installments - 1)
+        // Jika tenor 1, maka 1-1=0, bulan tidak berubah (benar).
+        // Jika tenor 3, maka 3-1=2, bulan maju 2 bulan (Oktober + 2 bulan = Desember). 
+        // Harusnya: Oktober + 3 bulan = Januari. Jadi, harusnya + installments
+        
+        // KOREKSI: Tanggal jatuh tempo akhir adalah Tanggal Mulai + (Tenor - 1) bulan jika ini cicilan.
+        // Tapi jika dilihat dari konteks cicilan 1/x, maka jatuh tempo *terakhir* adalah:
+        // Tgl Mulai (Cicilan 1) -> Tgl Mulai + 1 bulan (Cicilan 2) -> ... -> Tgl Mulai + (N-1) bulan (Cicilan N).
+        // Namun, jika tanggal mulai adalah T0, maka cicilan terakhir adalah T0 + (N-1) bulan.
+        // Jika tanggal mulai adalah T1 (cicilan 1), maka cicilan terakhir adalah T1 + (N-1) bulan.
+        // Contoh: Mulai 19 Okt (Cicilan 1), Tenor 3.
+        // Cicilan 1: 19 Okt
+        // Cicilan 2: 19 Nov
+        // Cicilan 3: 19 Des
+        // Jatuh tempo akhir: 19 Des. (Jika tenor 3x, artinya 3x pembayaran, dengan pembayaran terakhir di bulan ke-3)
+        // Namun, user ingin 19 Okt + 3 bulan = 19 Jan. Ini berarti Cicilan 1 di Tgl Mulai + 1 bulan (yaitu 19 Nov).
+        
+        // ASUMSI BARU (Mengikuti Keinginan User):
+        // Pembayaran Cicilan ke-1 dilakukan 1 bulan setelah Tanggal Mulai.
+        // Jadi, Jatuh Tempo Akhir adalah Tanggal Mulai + Tenor bulan.
+        
+        // Perbaikan: Ubah logika agar menambah 'installments' bulan.
+        finalDueDate.setMonth(finalDueDate.getMonth() + installments); 
+
+        // Koreksi jika setMonth melompat bulan
+        if (finalDueDate.getDate() < startDay && finalDueDate.getDate() !== 1) {
+             // Jika tanggal yang dihasilkan lebih kecil dari hari awal (misal 31-Jan + 1 bulan = 3-Mar),
+             // dan tanggal yang dihasilkan BUKAN tanggal 1 (misal 31-Mar + 1 bulan = 1-Mei, ini benar),
+             // maka kita asumsikan lompatan terjadi karena hari tidak ada (misal 31 Feb) dan atur ke hari terakhir bulan
+             finalDueDate.setDate(0); 
+        }
+        // --- AKHIR LOGIKA PERHITUNGAN JATUH TEMPO AKHIR ---
 
         const formattedDate = finalDueDate.toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
         
         finalDueDateDisplay.textContent = formattedDate;
         
-        return finalDueDate.toISOString().split('T')[0];
+        // Format output YYYY-MM-DD
+        const year = finalDueDate.getFullYear();
+        const month = String(finalDueDate.getMonth() + 1).padStart(2, '0');
+        const day = String(finalDueDate.getDate()).padStart(2, '0');
+        
+        return `${year}-${month}-${day}`; 
     }
     
+    // FUNGSI INI DIPERBAIKI DENGAN LOGIKA KOREKSI LOMPATAN BULAN (Month Rollover)
     function calculateNextDueDate(tx) {
          const dateString = tx.startDate;
          
@@ -825,37 +1094,70 @@
          const paidCount = tx.paymentHistory ? tx.paymentHistory.length : 0;
          if (paidCount >= tx.installmentsCount) return null; 
 
-         const startDate = new Date(dateString); 
-         // Tambahkan satu hari agar perhitungan bulan menjadi akurat
-         startDate.setDate(startDate.getDate() + 1); 
+         // 1. Buat objek Date dari tanggal mulai (diberi T00:00:00 untuk menghindari masalah zona waktu)
+         const startDate = new Date(dateString + 'T00:00:00');
+         const startDay = startDate.getDate();
+         const startMonth = startDate.getMonth();
+         const startYear = startDate.getFullYear();
          
-         // Hitung tanggal jatuh tempo cicilan berikutnya
-         const nextDueDate = new Date(startDate);
-         nextDueDate.setMonth(nextDueDate.getMonth() + paidCount); 
+         // 2. Hitung bulan jatuh tempo berikutnya (bulan awal + jumlah cicilan yang sudah dibayar + 1 bulan)
+         // Jika paidCount = 0 (cicilan ke-1), nextDueDate harus maju 1 bulan.
+         // Jika paidCount = 1 (cicilan ke-2), nextDueDate harus maju 2 bulan.
+         // Jadi, kita hitung: startMonth + (paidCount + 1)
          
-         // Atur kembali tanggal ke tanggal mulai pinjam
-         const dayOfMonth = new Date(tx.startDate).getDate();
-         nextDueDate.setDate(dayOfMonth);
+         const newMonth = startMonth + paidCount + 1; // +1 untuk maju ke bulan berikutnya (cicilan ke-n+1)
+         
+         // Buat tanggal baru dengan hari dan bulan yang sudah dihitung.
+         // JavaScript akan otomatis menangani lompatan tahun (misal: bulan ke-12 menjadi tahun berikutnya, bulan ke-0)
+         let nextDueDate = new Date(startYear, newMonth, startDay); 
 
-         return nextDueDate.toISOString().split('T')[0]; 
+         // 3. Koreksi jika setDate(startDay) menyebabkan lompatan bulan.
+         
+         // Hitung bulan yang diharapkan setelah modulo 12
+         // newMonth adalah bulan ke-(n+1). Contoh: Okt (9) + 1 = 10 (Nov). Expected: 10 % 12 = 10.
+         // Contoh: Jan (0) + 1 = 1 (Feb). Expected: 1 % 12 = 1.
+         // Contoh: Des (11) + 1 = 12 (Jan tahun depan). Expected: 12 % 12 = 0.
+         const expectedMonth = newMonth % 12;
+         
+         // nextDueDate.getMonth() akan otomatis menjadi 0 untuk Jan tahun depan.
+         // Ini akan membandingkan: 0 vs 0 (OK) atau 1 vs 1 (OK).
+         // Jika 31 Jan + 1 bulan = 3 Mar (getMonth() = 2), expectedMonth = 1 (Feb).
+         if (nextDueDate.getMonth() !== expectedMonth) {
+              // Jika terjadi lompatan, atur ke hari terakhir bulan yang diharapkan (expectedMonth).
+              // new Date(tahun, expectedMonth + 1, 0) menghasilkan hari terakhir bulan 'expectedMonth'.
+              nextDueDate = new Date(nextDueDate.getFullYear(), expectedMonth + 1, 0); 
+         } 
+         
+         // Format output YYYY-MM-DD
+         const year = nextDueDate.getFullYear();
+         const month = String(nextDueDate.getMonth() + 1).padStart(2, '0');
+         const day = String(nextDueDate.getDate()).padStart(2, '0');
+         
+         return `${year}-${month}-${day}`; 
     }
     
+    // FUNGSI INI DIPERBAIKI UNTUK PERBANDINGAN TANGGAL YANG AKURAT
     function getDueStatus(dueDate) {
         if (!dueDate) return { badge: '', class: '' }; 
 
         const today = new Date();
-        today.setHours(0, 0, 0, 0); 
+        today.setHours(0, 0, 0, 0); // Hapus jam (tanggal hari ini yang bersih)
         
-        const due = new Date(dueDate);
-        // Perbaiki karena input date memberikan tanggal 1 hari sebelumnya saat konversi
-        due.setDate(due.getDate() + 1);
-        due.setHours(0, 0, 0, 0); 
+        // Buat tanggal jatuh tempo dari string YYYY-MM-DD. 
+        // Menggunakan constructor Date(string + 'T00:00:00') penting untuk interpretasi zona waktu yang konsisten.
+        const due = new Date(dueDate + 'T00:00:00'); 
+        due.setHours(0, 0, 0, 0); // Hapus jam (tanggal jatuh tempo yang bersih)
 
-        const diffTime = due - today;
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        // Hitung selisih hari
+        const diffTime = due.getTime() - today.getTime();
+        // Gunakan Math.ceil() untuk memastikan selisih waktu yang kurang dari 24 jam (tapi di hari berikutnya)
+        // dihitung sebagai 1 hari, dan jika sudah lewat (negatif), tetap dikonversi dengan benar.
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
         
         if (diffDays < 0) {
             return { badge: `TERLAMBAT ${Math.abs(diffDays)} hari`, class: 'status-late' };
+        } else if (diffDays === 0) {
+            return { badge: 'JATUH TEMPO HARI INI', class: 'status-active' }; 
         } else if (diffDays <= 7) {
             return { badge: `JATUH TEMPO ${diffDays} hari lagi`, class: 'status-active' };
         } else {
@@ -943,8 +1245,8 @@
             let badge;
             
             // Konversi tanggal untuk tampilan
-            const nextDueDisplay = nextDueDate ? new Date(nextDueDate).toLocaleDateString('id-ID') : '-';
-            const completedDateDisplay = tx.dateCompleted ? new Date(tx.dateCompleted).toLocaleDateString('id-ID') : '-';
+            const nextDueDisplay = nextDueDate ? new Date(nextDueDate + 'T00:00:00').toLocaleDateString('id-ID') : '-';
+            const completedDateDisplay = tx.dateCompleted ? new Date(tx.dateCompleted + 'T00:00:00').toLocaleDateString('id-ID') : '-';
 
             if (tx.status === 'aktif') {
                 amountDisplay = `<div class="remaining-amount">Rp ${formatCurrency(remainingTotal)}</div>`;
@@ -1007,7 +1309,7 @@
             const remainingTotal = totals.totalPerInstallment * remainingInstallments;
             
             const initials = tx.person.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
-            const nextDueDisplay = nextDueDate ? new Date(nextDueDate).toLocaleDateString('id-ID') : '-';
+            const nextDueDisplay = nextDueDate ? new Date(nextDueDate + 'T00:00:00').toLocaleDateString('id-ID') : '-';
 
             listHtml += `
                 <div class="transaction-list-item ${tx.type}" data-id="${tx.id}" onclick="showDetailModal('${tx.id}')">
@@ -1245,7 +1547,7 @@
         const remainingTotal = totals.totalPerInstallment * remainingInstallments;
         const nextDueDate = calculateNextDueDate(tx);
         
-        const nextDueDisplay = nextDueDate ? new Date(nextDueDate).toLocaleDateString('id-ID') : '-';
+        const nextDueDisplay = nextDueDate ? new Date(nextDueDate + 'T00:00:00').toLocaleDateString('id-ID') : '-';
 
 
         modalTitle.textContent = `${tx.type === 'piutang' ? 'Piutang' : 'Utang'} dengan ${tx.person}`;
@@ -1260,7 +1562,7 @@
                 
                 return `
                     <div>
-                        <span>Cicilan ke-${index + 1} (${new Date(p.date).toLocaleDateString('id-ID')})</span>
+                        <span>Cicilan ke-${index + 1} (${new Date(p.date + 'T00:00:00').toLocaleDateString('id-ID')})</span>
                         <strong>Rp ${formatCurrency(p.amount)}${deleteButton}</strong>
                     </div>
                 `;
@@ -1310,7 +1612,7 @@
     // FUNGSI BARU UNTUK MEMBUKA MODAL INPUT TANGGAL
     function openPaymentModal(id, installmentAmount) {
         // Tutup modal detail sebentar
-        closeDetailModal(); 
+        // closeDetailModal(); // Dihapus karena kita menggunakan openPaymentModal di dalam showDetailModal
         
         currentTxId = id;
         currentInstallmentAmount = installmentAmount;
@@ -1361,7 +1663,7 @@
         }
 
         saveTransactions();
-        alert(`Pembayaran cicilan ke-${tx.paymentHistory.length} tanggal ${new Date(datePaid).toLocaleDateString('id-ID')} berhasil dicatat!`);
+        alert(`Pembayaran cicilan ke-${tx.paymentHistory.length} tanggal ${new Date(datePaid + 'T00:00:00').toLocaleDateString('id-ID')} berhasil dicatat!`);
         
         closePaymentModal();
         reRenderAllLists();
@@ -1378,6 +1680,7 @@
 
         tx.paymentHistory.pop(); 
         
+        // Pastikan status kembali aktif jika sudah lunas
         if (tx.status === 'lunas') {
             tx.status = 'aktif';
             tx.dateCompleted = null;
@@ -1444,7 +1747,7 @@
             const remainingTotal = totals.totalPerInstallment * remainingInstallments;
             
             const paymentDetails = tx.paymentHistory 
-                ? tx.paymentHistory.map((p, i) => `Cicilan ${i+1}: Rp${p.amount} (${p.date})`).join(';')
+                ? tx.paymentHistory.map((p, i) => `Cicilan ${i+1}: Rp${Math.round(p.amount)} (${p.date})`).join(';')
                 : '';
 
             const row = [
@@ -1479,7 +1782,7 @@
         }
     }
 
-    // --- LOGIKA TOMBOL KEMBALI & KLIK DI LUAR MODAL (BARU) ---
+    // --- LOGIKA TOMBOL KEMBALI & KLIK DI LUAR MODAL (TIDAK BERUBAH DARI SEBELUMNYA) ---
     
     function handleBackKey(event) {
         // Cek jika ini adalah tombol Escape (untuk desktop/PWA) atau event backbutton (untuk Android/Hybrid)

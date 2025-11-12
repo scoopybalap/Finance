@@ -573,7 +573,7 @@
     let piutangChartInstance = null; 
 
     // ===================================
-    // 1. MANAJEMEN DATA & LOCAL STORAGE (TETAP)
+    // 1. MANAJEMEN DATA & LOCAL STORAGE
     // ===================================
 
     function loadTransactions() {
@@ -588,7 +588,7 @@
     }
     
     // ===================================
-    // 2. FUNGSI UTILITAS (TETAP)
+    // 2. FUNGSI UTILITAS
     // ===================================
 
     function formatInputRupiah(inputElement) {
@@ -773,7 +773,7 @@
     }
 
     // ===================================
-    // 3. FUNGSI RENDER (TETAP)
+    // 3. FUNGSI RENDER
     // ===================================
 
     function renderSummaryCards() {
@@ -999,7 +999,7 @@
     }
 
     // ===================================
-    // 4. FUNGSI NAVIGASI & INTERAKSI (MODIFIKASI: FAB Visibility)
+    // 4. FUNGSI NAVIGASI & INTERAKSI
     // ===================================
     
     function navigateTo(pageId) {
@@ -1015,14 +1015,13 @@
              }
         });
 
-        // --- LOGIKA BARU UNTUK FAB ---
+        // FAB visibility logic
         const fab = document.getElementById('fabAddTransaction');
         if (pageId === 'homePage') {
             fab.classList.add('show');
         } else {
             fab.classList.remove('show');
         }
-        // --- END LOGIKA FAB ---
 
         // Trigger render when navigating to certain pages
         if (pageId === 'homePage') {
@@ -1040,6 +1039,14 @@
         }
         
         closeSideMenu();
+        
+        // Push state for better back button handling (optional, but helps PWA/browser behavior)
+        if(pageId !== 'homePage') {
+            history.pushState({page: pageId}, pageId, `#${pageId}`);
+        } else {
+            // Jika kembali ke home, pastikan URL bersih atau handle sesuai kebutuhan PWA
+            history.pushState({page: 'homePage'}, 'homePage', '#homePage');
+        }
     }
     
     function sortTransactions(a, b, sortValue) {
@@ -1085,7 +1092,7 @@
     }
 
     // ===================================
-    // 5. FUNGSI FORM & MODAL (TETAP)
+    // 5. FUNGSI FORM & MODAL
     // ===================================
 
     form.addEventListener('submit', function(e) {
@@ -1266,7 +1273,7 @@
     }
     
     // ===================================
-    // 6. FUNGSI UTAMA & INITIALIZATION (MODIFIKASI: FAB Initialization)
+    // 6. FUNGSI UTAMA & INITIALIZATION (MODIFIKASI: Back Button Logic)
     // ===================================
     
     function reRenderAllLists() {
@@ -1343,6 +1350,31 @@
         }
     }
 
+    /**
+     * Mengatur perilaku tombol kembali.
+     * 1. Jika di halaman selain Beranda, navigasi ke Beranda.
+     * 2. Jika sudah di Beranda, konfirmasi penutupan aplikasi.
+     */
+    function handleBackButton() {
+        const activePageId = document.querySelector('.page.active')?.id; 
+        
+        if (activePageId && activePageId !== 'homePage') {
+            // Jika bukan di Beranda, kembali ke Beranda dan jangan lanjutkan history.back()
+            navigateTo('homePage');
+        } else {
+            // Jika sudah di Beranda, tampilkan konfirmasi keluar
+            if (confirm("Apakah Anda yakin ingin keluar dari aplikasi?")) {
+                // Di lingkungan browser/PWA/Webview, history.back() akan menutup
+                // atau di lingkungan Cordova/Capacitor, event backbutton di handle native
+                if (typeof navigator.app !== 'undefined') {
+                    navigator.app.exitApp(); // Hanya untuk Cordova/Phonegap/Capacitor
+                } else {
+                    history.back(); // Untuk PWA/Webview biasa
+                }
+            }
+        }
+    }
+
 
     document.addEventListener('DOMContentLoaded', () => {
         loadTransactions();
@@ -1364,9 +1396,41 @@
         });
         
         // --- INIALISASI FAB ---
-        // Panggil navigateTo('homePage') untuk memastikan FAB ditampilkan saat dimuat pertama kali
         document.getElementById('fabAddTransaction').classList.add('show');
-        // --- END INIALISASI FAB ---
+        
+        // --- START LOGIKA TOMBOL KEMBALI BARU ---
+        
+        // Listener untuk browser/PWA (popstate)
+        window.addEventListener('popstate', function(event) {
+             // Pastikan side menu tertutup saat tombol back ditekan
+             closeSideMenu(); 
+             
+             // Dapatkan halaman aktif dari URL hash (jika ada) atau paksa ke home
+             const hash = window.location.hash.replace('#', '');
+             const targetPage = hash || 'homePage';
+             
+             // Navigasi ke halaman yang dituju oleh popstate, atau ke home jika tidak ditemukan
+             if (document.getElementById(targetPage)) {
+                 document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
+                 document.getElementById(targetPage).classList.add('active');
+                 // Re-render konten halaman yang baru aktif
+                 reRenderAllLists(); 
+             } else if (targetPage === 'homePage') {
+                 // Ini menangani kasus back button yang tidak terkait dengan hash/history
+                 handleBackButton();
+             }
+        });
+
+        // Listener untuk lingkungan Cordova/Capacitor/Webview (backbutton event)
+        if (typeof document.addEventListener === 'function') {
+            document.addEventListener('backbutton', handleBackButton, false);
+        }
+
+        // Penanganan inisial load berdasarkan URL hash
+        const initialPage = window.location.hash.replace('#', '') || 'homePage';
+        navigateTo(initialPage);
+        
+        // --- END LOGIKA TOMBOL KEMBALI BARU ---
     });
     </script>
 </body>

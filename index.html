@@ -3,12 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Utang-Piutang Saya (Personal Finance Tracker)</title>
+    <title>Pencatat Utang Piutang</title>
     
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script> 
 <style>
-    /* Gaya CSS (Penyesuaian untuk Sorting Control) */
+    /* ---------------------------------- */
+    /* GAYA UMUM */
+    /* ---------------------------------- */
     body { 
         font-family: sans-serif; 
         margin: 0; 
@@ -30,40 +32,12 @@
         margin: 0 auto; 
         background: white; 
         padding: 15px; 
-        border-radius: 0; 
         box-shadow: none; 
         flex-grow: 1; 
         overflow-y: auto; 
         -webkit-overflow-scrolling: touch; 
         padding-bottom: 70px; 
     }
-    .navigation { 
-        position: fixed; 
-        bottom: 0; 
-        width: 100%; 
-        max-width: 450px; 
-        left: 50%;
-        transform: translateX(-50%);
-        background-color: #343a40; 
-        display: flex; 
-        justify-content: space-around; 
-        padding: 10px 0; 
-        box-shadow: 0 -2px 5px rgba(0,0,0,0.2);
-        z-index: 10;
-    }
-    .nav-item { 
-        color: #ccc; 
-        text-align: center; 
-        flex-grow: 1;
-        padding: 5px 0;
-        cursor: pointer;
-        transition: color 0.3s, background-color 0.3s; 
-    }
-    .nav-item:hover, .nav-item.active { 
-        color: #007bff; 
-        background-color: rgba(255, 255, 255, 0.1);
-    }
-    .nav-item h4 { margin: 0; font-size: 0.8em; } 
     .page { 
         display: none; 
     } 
@@ -76,21 +50,151 @@
         font-size: 1.3em; 
         margin-bottom: 15px; 
     } 
-    .transaction { 
-        padding: 12px; 
-        margin-bottom: 8px; 
-        border-left: 4px solid; 
-        background-color: #fff; 
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05); 
-        border-radius: 4px; 
+    
+    /* ---------------------------------- */
+    /* PERUBAHAN GAYA NAVIGASI (TAB BAR) */
+    /* ---------------------------------- */
+    .navigation { 
+        position: fixed; 
+        bottom: 0; 
+        width: 100%; 
+        max-width: 450px; 
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: white; /* Ubah background menjadi putih */
+        display: flex; 
+        justify-content: space-around; 
+        padding: 0; /* Hapus padding vertikal */
+        height: 60px; /* Atur ketinggian */
+        box-shadow: 0 -3px 8px rgba(0,0,0,0.1); /* Tambahkan shadow ke atas */
+        z-index: 10;
+        border-top: 1px solid #eee;
     }
-    .transaction.lunas {
-        border-left-color: #adb5bd !important; 
-        opacity: 0.7; 
+    .nav-item { 
+        color: #6c757d; /* Warna teks default abu-abu */
+        text-align: center; 
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: color 0.3s; 
+    }
+    .nav-item.active { 
+        color: #007bff; /* Warna teks aktif biru */
+    }
+    .nav-item h4 { margin: 0; font-size: 0.7em; font-weight: 500;} /* Perkecil teks */
+    .nav-item .icon { font-size: 1.2em; margin-bottom: 3px; }
+
+    /* Gaya khusus tombol Tambah (+) di tengah */
+    .nav-item[data-page="formPage"] {
+        position: relative;
+        top: -15px; /* Angkat tombol ke atas */
+        background-color: #007bff;
+        color: white;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        box-shadow: 0 4px 10px rgba(0, 123, 255, 0.4);
+        font-size: 1.5em;
+        padding-top: 0;
+    }
+    .nav-item[data-page="formPage"] h4 { display: none; }
+    
+    /* ---------------------------------- */
+    /* PERUBAHAN GAYA LIST TRANSAKSI (Utang/Piutang) */
+    /* ---------------------------------- */
+    .transaction-list-item {
+        display: flex;
+        align-items: center;
+        padding: 12px 0;
+        border-bottom: 1px solid #eee;
+        cursor: pointer;
+        transition: background-color 0.1s;
+    }
+    .transaction-list-item:hover {
         background-color: #f8f9fa;
     }
+    .transaction-list-item:last-child {
+        border-bottom: none;
+    }
+    .avatar-icon {
+        width: 35px;
+        height: 35px;
+        border-radius: 50%;
+        background-color: #e9ecef;
+        color: #6c757d;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 1.2em;
+        font-weight: bold;
+        margin-right: 15px;
+        flex-shrink: 0;
+    }
+    .info-section {
+        flex-grow: 1;
+        min-width: 0;
+    }
+    .info-section strong {
+        display: block;
+        font-size: 1.1em;
+        margin-bottom: 2px;
+        color: #333;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .info-section p {
+        margin: 0;
+        font-size: 0.8em;
+        color: #6c757d;
+    }
+    .info-section .status-badge {
+        display: inline-block;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 0.7em;
+        font-weight: bold;
+        margin-right: 5px;
+    }
+    .status-active { background-color: #d1ecf1; color: #008080; } /* Biru/Cyan muda */
+    .status-late { background-color: #f8d7da; color: #dc3545; } /* Merah muda/Terlambat */
+    
+    .amount-section {
+        text-align: right;
+        flex-shrink: 0;
+        margin-left: 10px;
+    }
+    .amount-section .remaining-amount {
+        font-size: 1.1em;
+        font-weight: bold;
+        color: #28a745; /* Hijau untuk piutang (aset) */
+    }
+    .transaction-list-item.utang .amount-section .remaining-amount {
+        color: #dc3545; /* Merah untuk utang (liabilitas) */
+    }
+    .amount-section .due-info {
+        font-size: 0.8em;
+        color: #6c757d;
+        margin-top: 2px;
+    }
 
-    /* GAYA BARU UNTUK SEARCH & SORT BAR */
+    /* ---------------------------------- */
+    /* GAYA DASHBOARD */
+    /* ---------------------------------- */
+    #mainDashboard { display: flex; flex-wrap: wrap; justify-content: space-between; margin-bottom: 15px; padding: 10px; border-radius: 6px; background-color: #e9ecef; }
+    .summary-card { flex-basis: 48%; padding: 15px 10px; border-radius: 8px; text-align: center; margin-bottom: 10px; }
+    .summary-card h3 { margin-top: 0; font-size: 0.8em; color: #555; } 
+    .summary-card p { font-size: 1.3em; font-weight: bold; margin: 3px 0 0; } 
+    .card-piutang { background-color: #d4edda; border: 1px solid #c3e6cb; } /* Hijau Muda */
+    .card-utang { background-color: #f8d7da; border: 1px solid #f5c6cb; } /* Merah Muda */
+    .card-networth { background-color: #fff3cd; border: 1px solid #ffeeba; flex-basis: 100%; margin-top: 5px; }
+    
+    /* ---------------------------------- */
+    /* GAYA FORM & CONTROLS */
+    /* ---------------------------------- */
     .controls-container {
         margin-bottom: 15px;
         padding: 5px 0;
@@ -117,74 +221,30 @@
         border-radius: 4px;
         font-size: 0.9em;
     }
-
-    /* GAYA UNTUK INDIKATOR TERLAMBAT */
-    .late-indicator {
-        display: inline-block;
-        background-color: #ffcdd2; 
-        color: #c62828; 
-        padding: 3px 8px;
-        margin-left: 10px;
-        border-radius: 4px;
-        font-size: 0.75em;
-        font-weight: bold;
-        border: 1px solid #ef9a9a;
-    }
-
-    /* GAYA UNTUK RIWAYAT PEMBAYARAN */
-    .payment-history-list {
-        margin-top: 10px;
-        border-top: 1px dashed #ccc;
-        padding-top: 5px;
-        max-height: 100px; 
-        overflow-y: auto;
-    }
-    .payment-history-list div {
-        font-size: 0.8em;
-        padding: 2px 0;
-        border-bottom: 1px dotted #eee;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-    .payment-history-list div:last-child {
-        border-bottom: none;
-    }
-
-    /* Gaya Dashboard dan Form (diabaikan untuk singkatnya, tapi tetap ada di kode) */
-    #mainDashboard { display: flex; flex-wrap: wrap; justify-content: space-around; margin-bottom: 15px; padding: 10px; border: 1px solid #ddd; border-radius: 6px; background-color: #e9ecef; }
-    .summary-card { flex-basis: 30%; padding: 8px 4px; border-radius: 4px; text-align: center; margin-bottom: 10px; }
-    .summary-card h3 { margin-top: 0; font-size: 0.7em; color: #555; } 
-    .summary-card p { font-size: 1.1em; font-weight: bold; margin: 3px 0 0; } 
-    .card-piutang { background-color: #d4edda; border: 1px solid #c3e6cb; }
-    .card-utang { background-color: #f8d7da; border: 1px solid #f5c6cb; }
-    .card-networth { background-color: #fff3cd; border: 1px solid #ffeeba; }
-    #chartArea { max-width: 100%; height: 250px; margin: 15px auto; padding: 10px; border: 1px solid #ddd; border-radius: 6px; background-color: white; display: flex; align-items: center; justify-content: center; }
-    input[type="text"], input[type="number"], input[type="date"], select { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-size: 1em; }
-    button { padding: 10px 15px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px; font-size: 0.9em; }
     
-    /* GAYA BARU UNTUK DAFTAR RINGKAS PIUTANG */
-    .transaction.compact {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
+    input[type="text"], input[type="number"], input[type="date"], select { 
+        width: 100%; 
+        padding: 10px; 
+        border: 1px solid #ddd; 
+        border-radius: 4px; 
+        box-sizing: border-box; 
+        font-size: 1em; 
+        margin-bottom: 10px;
+    }
+    button { 
+        padding: 10px 15px; 
+        background-color: #007bff; 
+        color: white; 
+        border: none; 
+        border-radius: 4px; 
         cursor: pointer; 
-    }
-    .transaction.compact .info {
-        flex-grow: 1;
-    }
-    .transaction.compact .date {
-        font-weight: bold;
-        color: #007bff;
-        text-align: right;
-        min-width: 100px;
-    }
-    .transaction.compact p {
-        margin: 0;
-        line-height: 1.4;
+        margin-right: 10px; 
+        font-size: 0.9em; 
     }
 
+    /* ---------------------------------- */
     /* GAYA MODAL */
+    /* ---------------------------------- */
     .modal-detail-row {
         display: flex;
         justify-content: space-between;
@@ -195,36 +255,36 @@
     }
     #modalContent .payment-history-list {
         max-height: 150px;
-    }
-    .modal-detail-row:last-of-type {
-        border-bottom: none;
-    }
-    .modal-detail-row strong {
-        color: #333;
+        overflow-y: auto;
     }
 </style>
 </head>
 <body>
 
     <div class="header">
-        <h1>Pencatat Keuangan Pribadi</h1>
+        <h1>Pencatat Hutang Piutang</h1>
     </div>
 
     <div class="container">
         
         <div id="homePage" class="page active">
-            <h2>Ringkasan Total Aktif 📊</h2>
+            <h2>Beranda 📊</h2>
             <div id="mainDashboard"></div>
             <h2>Status Piutang (Grafik) 📈</h2>
-            <div id="chartArea">
+            <div id="chartArea" style="height: 250px;">
                 <canvas id="piutangChart"></canvas>
+            </div>
+            
+            <h3 style="margin-top: 25px;">Transaksi Aktif Terbaru</h3>
+            <div id="latestTransactions" style="border: 1px solid #ddd; padding: 0 10px; border-radius: 6px;">
+                <p style="text-align: center; color: #6c757d;">Memuat data...</p>
             </div>
         </div>
         
         <div id="formPage" class="page">
             <h2>Tambah Transaksi Baru ➕</h2>
             <form id="transactionForm">
-                <div><label for="type">Tipe Transaksi:</label><select id="type" required><option value="piutang">Piutang (Orang Lain Berutang Kepada Saya)</option><option value="utang">Utang (Saya Berutang Kepada Orang Lain)</option></select></div>
+                <div><label for="type">Tipe Transaksi:</label><select id="type" required><option value="piutang">Piutang (Saya Memberi Pinjaman)</option><option value="utang">Utang (Saya Menerima Pinjaman)</option></select></div>
                 <div><label for="person">Nama Pihak/Orang:</label><input type="text" id="person" required></div>
                 <div><label for="principal">Jumlah Pokok (Rp):</label><input type="text" id="principal" required onkeyup="formatInputRupiah(this); updateInstallmentEstimate()"></div>
                 
@@ -241,7 +301,7 @@
         </div>
 
         <div id="piutangPage" class="page">
-            <h2>Daftar Piutang Aktif Saya ✅</h2>
+            <h2>Daftar Piutang Aktif ✅</h2>
             <div class="controls-container">
                 <div class="search-container"><input type="text" id="searchPiutang" placeholder="Cari Piutang berdasarkan nama..." onkeyup="filterTransactionList('piutang')"></div>
                 <div class="sort-controls">
@@ -249,18 +309,15 @@
                     <select id="sortPiutang" onchange="filterTransactionList('piutang')">
                         <option value="due_asc">Jatuh Tempo Terdekat</option>
                         <option value="due_desc">Jatuh Tempo Terlama</option>
-                        <option value="name_asc">Nama (A-Z)</option>
-                        <option value="name_desc">Nama (Z-A)</option>
                         <option value="amount_desc">Sisa (Terbesar)</option>
-                        <option value="amount_asc">Sisa (Terkecil)</option>
                     </select>
                 </div>
             </div>
-            <div id="piutangList"><p>Memuat data piutang...</p></div>
+            <div id="piutangList" style="border: 1px solid #ddd; padding: 0 15px; border-radius: 6px;"><p>Memuat data piutang...</p></div>
         </div>
 
         <div id="utangPage" class="page">
-            <h2>Daftar Utang Aktif Saya ❌</h2>
+            <h2>Daftar Utang Aktif ❌</h2>
             <div class="controls-container">
                 <div class="search-container"><input type="text" id="searchUtang" placeholder="Cari Utang berdasarkan nama..." onkeyup="filterTransactionList('utang')"></div>
                 <div class="sort-controls">
@@ -268,49 +325,67 @@
                     <select id="sortUtang" onchange="filterTransactionList('utang')">
                         <option value="due_asc">Jatuh Tempo Terdekat</option>
                         <option value="due_desc">Jatuh Tempo Terlama</option>
-                        <option value="name_asc">Nama (A-Z)</option>
-                        <option value="name_desc">Nama (Z-A)</option>
                         <option value="amount_desc">Sisa (Terbesar)</option>
-                        <option value="amount_asc">Sisa (Terkecil)</option>
                     </select>
                 </div>
             </div>
-            <div id="utangList"><p>Memuat data utang...</p></div>
+            <div id="utangList" style="border: 1px solid #ddd; padding: 0 15px; border-radius: 6px;"><p>Memuat data utang...</p></div>
         </div>
         
         <div id="historyPage" class="page">
-            <h2>Riwayat Lunas (Piutang & Utang) 📜</h2>
+            <h2>Riwayat Transaksi Lunas 📜</h2>
             <div class="controls-container">
                 <div class="search-container"><input type="text" id="searchHistory" placeholder="Cari Riwayat berdasarkan nama..." onkeyup="filterTransactionList('history')"></div>
                 <div class="sort-controls">
                     <label for="sortHistory">Urutkan:</label>
                     <select id="sortHistory" onchange="filterTransactionList('history')">
                         <option value="lunas_desc">Tanggal Lunas Terbaru</option>
-                        <option value="lunas_asc">Tanggal Lunas Terlama</option>
-                        <option value="name_asc">Nama (A-Z)</option>
-                        <option value="name_desc">Nama (Z-A)</option>
                         <option value="principal_desc">Pokok (Terbesar)</option>
-                        <option value="principal_asc">Pokok (Terkecil)</option>
                     </select>
                 </div>
             </div>
-            <div id="historyList"><p>Memuat riwayat lunas...</p></div>
+            <div id="historyList" style="border: 1px solid #ddd; padding: 10px 15px; border-radius: 6px;"><p>Memuat riwayat lunas...</p></div>
         </div>
 
         <div id="summaryPage" class="page">
-            <h2>Ringkasan Saldo Awal dan Akhir 👑</h2>
-            <div id="balanceSummary" class="saldo-ringkasan"></div>
+            <h2>Ringkasan & Export Data 👑</h2>
+            <p>Export data transaksi aktif dan lunas ke dalam format CSV (kompatibel dengan Excel) untuk analisis lebih lanjut.</p>
+            <button onclick="exportToCSV()" style="background-color: #28a745;">Export Semua Data ke CSV</button>
+            
+            <h3 style="margin-top: 30px;">Ringkasan Saldo Global</h3>
+            <div id="balanceSummary" style="border: 1px solid #ddd; padding: 15px; border-radius: 6px;">
+                <p>Total Piutang (Awal): <strong id="summaryPiutangAwal">Rp 0</strong></p>
+                <p>Sisa Piutang (Aktif): <strong id="summaryPiutangSisa">Rp 0</strong></p>
+                <hr>
+                <p>Total Utang (Awal): <strong id="summaryUtangAwal">Rp 0</strong></p>
+                <p>Sisa Utang (Aktif): <strong id="summaryUtangSisa">Rp 0</strong></p>
+                <hr>
+                <p>Net Worth (Bersih Aktif): <strong id="summaryNetWorth">Rp 0</strong></p>
+            </div>
         </div>
 
     </div>
 
     <div class="navigation">
-        <div class="nav-item active" data-page="homePage"><h4>🏠 Beranda</h4></div>
-        <div class="nav-item" data-page="formPage"><h4>➕ Tambah</h4></div>
-        <div class="nav-item" data-page="piutangPage"><h4>✅ Piutang</h4></div>
-        <div class="nav-item" data-page="utangPage"><h4>❌ Utang</h4></div>
-        <div class="nav-item" data-page="historyPage"><h4>📜 Riwayat</h4></div>
-        <div class="nav-item" data-page="summaryPage"><h4>👑 Ringkasan</h4></div>
+        <div class="nav-item active" data-page="homePage">
+            <span class="icon">🏠</span>
+            <h4>Beranda</h4>
+        </div>
+        <div class="nav-item" data-page="piutangPage">
+            <span class="icon">✅</span>
+            <h4>Piutang</h4>
+        </div>
+        <div class="nav-item" data-page="formPage">
+            <span class="icon" style="font-size: 2em; line-height: 1;">+</span>
+        </div>
+        <div class="nav-item" data-page="utangPage">
+            <span class="icon">❌</span>
+            <h4>Utang</h4>
+        </div>
+        <div class="nav-item" data-page="historyPage">
+            <span class="icon">📜</span>
+            <h4>Riwayat</h4>
+        </div>
     </div>
     
     <div id="transactionDetailModal" style="
@@ -356,12 +431,11 @@
     const historyListContainer = document.getElementById('historyList'); 
     const navItems = document.querySelectorAll('.nav-item');
     
-    // Ambil elemen form
     const principalInput = document.getElementById('principal');
     const interestRateInput = document.getElementById('interestRate');
     const installmentsCountInput = document.getElementById('installmentsCount');
-    const startDateInput = document.getElementById('startDate'); // INPUT BARU
-    const finalDueDateDisplay = document.getElementById('finalDueDateDisplay'); // OUTPUT BARU
+    const startDateInput = document.getElementById('startDate'); 
+    const finalDueDateDisplay = document.getElementById('finalDueDateDisplay'); 
     const estimateDiv = document.getElementById('installmentEstimate');
 
     let piutangChartInstance = null; 
@@ -380,7 +454,7 @@
     function saveTransactions() {
         localStorage.setItem('personalFinanceTracker', JSON.stringify(transactions));
     }
-
+    
     // ===================================
     // 2. FUNGSI UTILITAS
     // ===================================
@@ -402,6 +476,10 @@
     
     function cleanInterestRate(input) {
         return input.replace(/,/g, '.').replace(/[^0-9.]/g, ''); 
+    }
+    
+    function cleanPrincipal(input) {
+         return input.replace(/\./g, ''); 
     }
 
     function calculateTotal(principal, rate, installmentsCount) {
@@ -433,9 +511,6 @@
         const activeTransactions = transactions.filter(tx => tx.status === 'aktif');
 
         activeTransactions.forEach(tx => {
-            // Migrasi data lama (tanpa startDate)
-            const dateToUse = tx.startDate || tx.date;
-            
             const result = calculateTotal(tx.principal, tx.interestRate, tx.installmentsCount);
             const paidCount = tx.paymentHistory ? tx.paymentHistory.length : 0;
             const remainingInstallments = tx.installmentsCount - paidCount;
@@ -462,7 +537,7 @@
     
     function updateInstallmentEstimate() {
         const principalFormatted = principalInput.value;
-        const principalClean = principalFormatted.replace(/\./g, ''); 
+        const principalClean = cleanPrincipal(principalFormatted); 
         const rateClean = cleanInterestRate(interestRateInput.value); 
         const installments = parseInt(installmentsCountInput.value);
 
@@ -487,7 +562,6 @@
         }
     }
     
-    // FUNGSI BARU UNTUK MENGHITUNG JATUH TEMPO TERAKHIR
     function calculateDueDate() {
         const startDateValue = startDateInput.value;
         const installments = parseInt(installmentsCountInput.value);
@@ -498,34 +572,22 @@
         }
 
         const startDate = new Date(startDateValue);
-        // Pastikan tanggal valid
         if (isNaN(startDate)) {
             finalDueDateDisplay.textContent = 'Tanggal mulai tidak valid.';
             return '';
         }
         
-        // Menambah jumlah bulan cicilan ke tanggal mulai
-        // Cicilan pertama jatuh tempo 1 bulan setelah tanggal mulai (tenor 1 bulan)
-        // Jatuh tempo terakhir adalah (startDate + installments) bulan.
-        // Contoh: Mulai 20 Okt, tenor 1 -> jatuh tempo 20 Nov (1 bulan)
-        // Contoh: Mulai 20 Okt, tenor 3 -> jatuh tempo 20 Jan (3 bulan)
-
         const finalDueDate = new Date(startDate);
-        // Menambahkan installments bulan (untuk tanggal jatuh tempo terakhir)
         finalDueDate.setMonth(finalDueDate.getMonth() + installments); 
 
-        // Format tanggal untuk tampilan
         const formattedDate = finalDueDate.toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
         
         finalDueDateDisplay.textContent = formattedDate;
         
-        // Kembalikan dalam format YYYY-MM-DD untuk disimpan
         return finalDueDate.toISOString().split('T')[0];
     }
     
-    // FUNGSI BARU UNTUK MENGHITUNG JATUH TEMPO BERIKUTNYA
     function calculateNextDueDate(tx) {
-         // Gunakan tx.startDate (baru) atau tx.date (lama) sebagai tanggal mulai
          const dateString = tx.startDate || tx.date;
          
          if (tx.status !== 'aktif' || !dateString) return null;
@@ -535,8 +597,6 @@
 
          const startDate = new Date(dateString); 
          
-         // Tanggal jatuh tempo cicilan berikutnya adalah:
-         // Tanggal mulai + (paidCount + 1) bulan
          const nextDueDate = new Date(startDate.getFullYear(), startDate.getMonth() + paidCount + 1, startDate.getDate());
 
          return nextDueDate;
@@ -546,11 +606,10 @@
     function calculateDelay(tx) {
         const nextDueDate = calculateNextDueDate(tx);
 
-        if (!nextDueDate) return null;
+        if (!nextDueDate) return 0; // 0 jika sudah lunas
 
         const today = new Date();
         
-        // Hapus waktu untuk perbandingan yang akurat
         const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
         const nextDueDateOnly = new Date(nextDueDate.getFullYear(), nextDueDate.getMonth(), nextDueDate.getDate());
 
@@ -561,23 +620,103 @@
         }
         return 0; 
     }
+    
+    function getAvatarInitial(person) {
+         return person.charAt(0).toUpperCase();
+    }
+    
+    // ===================================
+    // 3. FUNGSI EXPORT TO CSV (BARU)
+    // ===================================
+    
+    function exportToCSV() {
+        if (transactions.length === 0) {
+            alert("Tidak ada data transaksi untuk diexport.");
+            return;
+        }
+
+        // Header CSV
+        let csvContent = "data:text/csv;charset=utf-8,";
+        csvContent += "Tipe,Pihak,Status,Tanggal Mulai,Tenor (Bulan),Jatuh Tempo Terakhir,Pokok (Rp),Suku Bunga (%),Total Akhir (Rp),Cicilan Per Bulan (Rp),Cicilan Dibayar,Sisa Saldo (Rp),Tanggal Lunas,Keterangan\n";
+
+        transactions.forEach(tx => {
+            const result = calculateTotal(tx.principal, tx.interestRate, tx.installmentsCount);
+            const paidCount = tx.paymentHistory ? tx.paymentHistory.length : 0;
+            const remainingInstallments = tx.installmentsCount - paidCount;
+            const remainingTotal = result.totalPerInstallment * remainingInstallments;
+            
+            // Format tanggal akhir untuk export
+            const finalDueDate = new Date(tx.startDate);
+            finalDueDate.setMonth(finalDueDate.getMonth() + tx.installmentsCount); 
+            const finalDueDateFormatted = finalDueDate.toLocaleDateString('id-ID');
+
+            let keterangan = "";
+            const delayDays = calculateDelay(tx);
+            if (tx.status === 'aktif' && delayDays > 0) {
+                keterangan = `Terlambat ${delayDays} hari`;
+            } else if (tx.status === 'aktif' && remainingInstallments === tx.installmentsCount) {
+                 keterangan = "Belum bayar";
+            } else if (tx.status === 'lunas') {
+                 keterangan = `Lunas pada ${new Date(tx.lunasDate).toLocaleDateString('id-ID')}`;
+            }
+
+            // Data Baris (Pastikan tidak ada koma di dalam data yang tidak dikutip)
+            const row = [
+                tx.type === 'piutang' ? 'Piutang' : 'Utang',
+                `"${tx.person.replace(/"/g, '""')}"`, // Kuotasi dan escape nama
+                tx.status,
+                new Date(tx.startDate).toLocaleDateString('id-ID'),
+                tx.installmentsCount,
+                finalDueDateFormatted,
+                parseFloat(tx.principal),
+                parseFloat(tx.interestRate),
+                Math.round(result.totalAmount),
+                Math.round(result.totalPerInstallment),
+                paidCount,
+                Math.round(remainingTotal),
+                tx.lunasDate ? new Date(tx.lunasDate).toLocaleDateString('id-ID') : '',
+                keterangan
+            ];
+
+            csvContent += row.join(",") + "\n";
+        });
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "data_utang_piutang_" + new Date().toISOString().slice(0, 10) + ".csv");
+        document.body.appendChild(link); // Perlu ditambahkan untuk kompatibilitas
+        link.click(); // Unduh file
+        document.body.removeChild(link); // Hapus elemen
+        alert("Data berhasil di-export ke CSV!");
+    }
+
 
     // ===================================
-    // 3. FUNGSI RENDER (TAMPILAN)
+    // 4. FUNGSI RENDER (TAMPILAN)
     // ===================================
-
-    function renderMainDashboard() {
-        const mainDashboard = document.getElementById('mainDashboard');
-        const { totalPiutangAwal, sisaPiutang, totalUtangAwal, sisaUtang, netWorthAkhir } = getFinancialTotals();
-
-        mainDashboard.innerHTML = `
+    
+    function renderBalanceSummary() {
+         const { totalPiutangAwal, sisaPiutang, totalUtangAwal, sisaUtang, netWorthAkhir } = getFinancialTotals();
+         
+         // Update ringkasan di halaman summaryPage
+         document.getElementById('summaryPiutangAwal').textContent = `Rp ${formatCurrency(totalPiutangAwal)}`;
+         document.getElementById('summaryPiutangSisa').textContent = `Rp ${formatCurrency(sisaPiutang)}`;
+         document.getElementById('summaryUtangAwal').textContent = `Rp ${formatCurrency(totalUtangAwal)}`;
+         document.getElementById('summaryUtangSisa').textContent = `Rp ${formatCurrency(sisaUtang)}`;
+         document.getElementById('summaryNetWorth').textContent = `Rp ${formatCurrency(netWorthAkhir)}`;
+         document.getElementById('summaryNetWorth').style.color = netWorthAkhir >= 0 ? 'green' : 'red';
+         
+         // Update dashboard di homePage
+         const mainDashboard = document.getElementById('mainDashboard');
+         mainDashboard.innerHTML = `
             <div class="summary-card card-piutang">
-                <h3>Aset (Sisa Piutang)</h3>
+                <h3>Total Piutang Aktif</h3>
                 <p>Rp ${formatCurrency(sisaPiutang)}</p>
                 <p style="font-size:0.7em; margin-top: 3px;">(Awal: Rp ${formatCurrency(totalPiutangAwal)})</p>
             </div>
             <div class="summary-card card-utang">
-                <h3>Liabilitas (Sisa Utang)</h3>
+                <h3>Total Utang Aktif</h3>
                 <p>Rp ${formatCurrency(sisaUtang)}</p>
                 <p style="font-size:0.7em; margin-top: 3px;">(Awal: Rp ${formatCurrency(totalUtangAwal)})</p>
             </div>
@@ -587,6 +726,72 @@
                 <p style="font-size:0.7em; margin-top: 3px; color:${netWorthAkhir >= 0 ? 'green' : 'red'};">${netWorthAkhir >= 0 ? 'Positif' : 'Negatif'}</p>
             </div>
         `;
+    }
+    
+    function renderLatestTransactions() {
+        const container = document.getElementById('latestTransactions');
+        container.innerHTML = '';
+        
+        // Gabungkan piutang dan utang, urutkan berdasarkan tanggal transaksi terbaru
+        const latestTx = transactions.filter(tx => tx.status === 'aktif')
+                                     .sort((a, b) => new Date(b.date) - new Date(a.date))
+                                     .slice(0, 5); // Ambil 5 transaksi terbaru
+
+        if (latestTx.length === 0) {
+             container.innerHTML = `<p style="text-align: center; color: #6c757d; padding: 10px 0;">Tidak ada transaksi aktif.</p>`;
+             return;
+        }
+
+        latestTx.forEach((tx) => {
+            const index = transactions.indexOf(tx); 
+            const result = calculateTotal(tx.principal, tx.interestRate, tx.installmentsCount);
+            const paidCount = tx.paymentHistory ? tx.paymentHistory.length : 0;
+            const remainingInstallments = tx.installmentsCount - paidCount;
+            const remainingTotal = result.totalPerInstallment * remainingInstallments;
+            const delayDays = calculateDelay(tx);
+            const nextDueDate = calculateNextDueDate(tx);
+            
+            let statusText;
+            let statusClass;
+            let dueInfo;
+            
+            if (delayDays > 0) {
+                statusText = 'Terlambat';
+                statusClass = 'status-late';
+                dueInfo = `Terlambat ${delayDays} hari`;
+            } else if (remainingInstallments > 0 && nextDueDate) {
+                const diffTime = Math.abs(nextDueDate - new Date());
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+                
+                statusText = 'Berjalan';
+                statusClass = 'status-active';
+                dueInfo = `Jatuh tempo dalam ${diffDays} hari`;
+            } else {
+                 statusText = 'Berjalan';
+                 statusClass = 'status-active';
+                 dueInfo = 'Menunggu cicilan pertama';
+            }
+
+            const listItem = document.createElement('div');
+            listItem.classList.add('transaction-list-item', tx.type);
+            listItem.onclick = () => showDetailModal(index); 
+
+            listItem.innerHTML = `
+                <div class="avatar-icon">${getAvatarInitial(tx.person)}</div>
+                <div class="info-section">
+                    <strong>${tx.person}</strong>
+                    <p>
+                        <span class="status-badge ${statusClass}">${statusText}</span>
+                        Cicilan ${paidCount}/${tx.installmentsCount}
+                    </p>
+                </div>
+                <div class="amount-section">
+                    <span class="remaining-amount">Rp ${formatCurrency(remainingTotal)}</span>
+                    <p class="due-info">${dueInfo}</p>
+                </div>
+            `;
+            container.appendChild(listItem);
+        });
     }
 
     // FUNGSI SORTING
@@ -598,7 +803,7 @@
                 const nextDueA = calculateNextDueDate(a);
                 const nextDueB = calculateNextDueDate(b);
 
-                // Perlakuan khusus untuk yang sudah lunas/tidak ada jatuh tempo
+                // Taruh yang sudah lunas/tidak ada jatuh tempo di akhir
                 if (!nextDueA) return 1;
                 if (!nextDueB) return -1;
                 
@@ -607,14 +812,7 @@
             });
         } 
         
-        else if (sortKey === 'name_asc' || sortKey === 'name_desc') {
-            result.sort((a, b) => {
-                const comparison = a.person.localeCompare(b.person);
-                return sortKey === 'name_asc' ? comparison : -comparison;
-            });
-        } 
-        
-        else if (sortKey === 'amount_asc' || sortKey === 'amount_desc') {
+        else if (sortKey === 'amount_desc' || sortKey === 'amount_asc') {
             result.sort((a, b) => {
                 const remainingA = calculateTotal(a.principal, a.interestRate, a.installmentsCount).totalPerInstallment * (a.installmentsCount - (a.paymentHistory ? a.paymentHistory.length : 0));
                 const remainingB = calculateTotal(b.principal, b.interestRate, b.installmentsCount).totalPerInstallment * (b.installmentsCount - (b.paymentHistory ? b.paymentHistory.length : 0));
@@ -624,7 +822,7 @@
             });
         }
         
-        else if (sortKey === 'lunas_asc' || sortKey === 'lunas_desc') { 
+        else if (sortKey === 'lunas_desc' || sortKey === 'lunas_asc') { 
             result.sort((a, b) => {
                 const dateA = new Date(a.lunasDate);
                 const dateB = new Date(b.lunasDate);
@@ -646,13 +844,12 @@
     }
 
 
-    // FUNGSI RENDER LIST UTAMA (Aktif)
+    // FUNGSI RENDER LIST UTAMA (Aktif) - DIUBAH TAMPILANNYA
     function renderTransactionList(type, container, searchTerm, sortKey) {
         container.innerHTML = ''; 
         
         let transactionsToDisplay = transactions.filter(tx => tx.type === type && tx.status === 'aktif');
         
-        // 1. FILTER
         const lowerCaseSearchTerm = searchTerm.toLowerCase();
         if (lowerCaseSearchTerm) {
             transactionsToDisplay = transactionsToDisplay.filter(tx => 
@@ -660,101 +857,65 @@
             );
         }
 
-        // 2. SORTING
         transactionsToDisplay = sortTransactions(transactionsToDisplay, sortKey);
 
 
         if (transactionsToDisplay.length === 0) {
-            container.innerHTML = `<p style="text-align: center; color: #555; margin-top: 20px;">${searchTerm ? `Tidak ditemukan transaksi '${type}' dengan nama "${searchTerm}".` : `Belum ada transaksi ${type} yang aktif dicatat.`}</p>`;
+            container.innerHTML = `<p style="text-align: center; color: #555; padding: 10px 0;">${searchTerm ? `Tidak ditemukan transaksi '${type}' dengan nama "${searchTerm}".` : `Belum ada transaksi ${type} yang aktif dicatat.`}</p>`;
             return;
         }
 
         transactionsToDisplay.forEach((tx) => {
             const index = transactions.indexOf(tx); 
             const result = calculateTotal(tx.principal, tx.interestRate, tx.installmentsCount);
-            const statusClass = tx.type === 'utang' ? 'utang' : 'piutang';
-            const transactionDiv = document.createElement('div');
             
             const paidCount = tx.paymentHistory ? tx.paymentHistory.length : 0;
             const remainingInstallments = tx.installmentsCount - paidCount;
             const remainingTotal = result.totalPerInstallment * remainingInstallments;
             const delayDays = calculateDelay(tx);
-            const delayIndicator = delayDays > 0 ? `<span class="late-indicator">${delayDays} Hari</span>` : '';
-            
-            // Hitung tanggal jatuh tempo berikutnya/terakhir untuk ditampilkan
             const nextDueDate = calculateNextDueDate(tx);
-            const finalDueDate = new Date(tx.startDate);
-            finalDueDate.setMonth(finalDueDate.getMonth() + tx.installmentsCount); 
             
-            const formattedNextDueDate = nextDueDate ? nextDueDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : 'Lunas!';
-            const formattedFinalDueDate = finalDueDate.toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
-
-
-            if (type === 'piutang') {
-                // Tampilan Ringkas untuk Piutang
-                transactionDiv.classList.add('transaction', statusClass, 'compact');
-                transactionDiv.onclick = () => showDetailModal(index); // Tambahkan event click
-
-                transactionDiv.innerHTML = `
-                    <div class="info">
-                        <p><strong>${tx.person}</strong> ${delayIndicator}</p>
-                        <p style="font-size: 0.8em; color: #6c757d;">
-                            Pokok: Rp ${formatCurrency(tx.principal)} | Sisa: Rp ${formatCurrency(remainingTotal)}
-                        </p>
-                    </div>
-                    <div class="date">
-                         ${remainingTotal > 0 ? formattedNextDueDate : 'Lunas!'}
-                    </div>
-                `;
-            } else {
-                // Tampilan Detail (Utang) - Pertahankan tampilan aslinya untuk utang
-                transactionDiv.classList.add('transaction', statusClass);
+            let statusText;
+            let statusClass;
+            let dueInfo;
+            
+            if (delayDays > 0) {
+                statusText = 'Terlambat';
+                statusClass = 'status-late';
+                dueInfo = `Jatuh tempo: ${delayDays} hari lalu`;
+            } else if (remainingInstallments > 0 && nextDueDate) {
+                const diffTime = Math.abs(nextDueDate - new Date());
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
                 
-                const lastPaymentIndex = paidCount - 1;
-
-                let paymentHistoryHTML = '';
-                if (paidCount > 0) {
-                    paymentHistoryHTML += '<div class="payment-history-list">';
-                    tx.paymentHistory.forEach((payment, idx) => {
-                        const formattedPaymentDate = new Date(payment.date).toLocaleDateString('id-ID');
-                        const isLast = idx === lastPaymentIndex;
-                        paymentHistoryHTML += `
-                            <div>
-                                <span>Cicilan ke-${idx + 1} (${formattedPaymentDate})</span>
-                                ${isLast ? `<button onclick="undoPayment(${index})" style="background-color: #ffc107; color: #333; padding: 3px 6px; font-size: 0.7em; margin: 0;">Cancel</button>` : ''}
-                            </div>
-                        `;
-                    });
-                    paymentHistoryHTML += '</div>';
-                }
-
-                transactionDiv.innerHTML = `
-                    <p><strong>${tx.type === 'utang' ? 'UTANG kepada' : 'PIUTANG dari'} ${tx.person}</strong> ${delayIndicator}</p>
-                    <p>Pokok: Rp ${formatCurrency(tx.principal)}</p>
-                    <p>Total Bunga: Rp ${formatCurrency(result.totalInterest)}</p>
-                    <p><strong>TOTAL AKHIR: Rp ${formatCurrency(result.totalAmount)}</strong></p>
-                    
-                    <div class="installments">
-                        Cicilan (${tx.installmentsCount}x): 
-                        <strong>Rp ${formatCurrency(result.totalPerInstallment)}</strong> per bulan.
-                    </div>
-                    
-                    <p>Dibayar: ${paidCount} dari ${tx.installmentsCount} cicilan</p>
-                    <p>Sisa: Rp ${formatCurrency(remainingTotal)} (${remainingInstallments} cicilan)</p>
-                    
-                    <p class="due-date">Tanggal Mulai: ${new Date(tx.startDate).toLocaleDateString('id-ID')}</p>
-                    <p class="due-date">Jatuh Tempo Terakhir: ${formattedFinalDueDate}</p>
-                    
-                    ${paymentHistoryHTML}
-
-                    <div style="margin-top: 10px;">
-                        ${remainingInstallments > 0 ? `<button onclick="payInstallment(${index})">Bayar Cicilan</button>` : ''}
-                        <button onclick="markPaid(${index})" style="background-color: #6c757d;">Tandai Lunas Penuh</button>
-                    </div>
-                `;
+                statusText = 'Berjalan';
+                statusClass = 'status-active';
+                dueInfo = `Jatuh tempo dalam ${diffDays} hari`;
+            } else {
+                 statusText = 'Berjalan';
+                 statusClass = 'status-active';
+                 dueInfo = 'Lunas/Menunggu cicilan pertama';
             }
 
-            container.appendChild(transactionDiv);
+
+            const listItem = document.createElement('div');
+            listItem.classList.add('transaction-list-item', tx.type);
+            listItem.onclick = () => showDetailModal(index); 
+
+            listItem.innerHTML = `
+                <div class="avatar-icon">${getAvatarInitial(tx.person)}</div>
+                <div class="info-section">
+                    <strong>${tx.person}</strong>
+                    <p>
+                        <span class="status-badge ${statusClass}">${statusText}</span>
+                        Cicilan ${paidCount}/${tx.installmentsCount}
+                    </p>
+                </div>
+                <div class="amount-section">
+                    <span class="remaining-amount">Rp ${formatCurrency(remainingTotal)}</span>
+                    <p class="due-info">${dueInfo}</p>
+                </div>
+            `;
+            container.appendChild(listItem);
         });
     }
     
@@ -764,7 +925,6 @@
         
         let historyTransactions = transactions.filter(tx => tx.status === 'lunas');
         
-        // 1. FILTER
         const lowerCaseSearchTerm = searchTerm.toLowerCase();
         if (lowerCaseSearchTerm) {
             historyTransactions = historyTransactions.filter(tx => 
@@ -772,11 +932,10 @@
             );
         }
 
-        // 2. SORTING
         historyTransactions = sortTransactions(historyTransactions, sortKey);
 
         if (historyTransactions.length === 0) {
-            historyListContainer.innerHTML = `<p style="text-align: center; color: #555; margin-top: 20px;">${searchTerm ? `Tidak ditemukan riwayat lunas dengan nama "${searchTerm}".` : `Belum ada riwayat transaksi lunas.`}</p>`;
+            historyListContainer.innerHTML = `<p style="text-align: center; color: #555; padding: 10px 0;">${searchTerm ? `Tidak ditemukan riwayat lunas dengan nama "${searchTerm}".` : `Belum ada riwayat transaksi lunas.`}</p>`;
             return;
         }
         
@@ -787,31 +946,24 @@
             const paidCount = tx.paymentHistory ? tx.paymentHistory.length : 0;
             
             const transactionDiv = document.createElement('div');
-            transactionDiv.classList.add('transaction', statusClass, 'lunas'); 
+            transactionDiv.classList.add('transaction-list-item', statusClass); 
+            transactionDiv.style.opacity = 0.7; // Tampilan lunas lebih redup
             
             const formattedDate = new Date(tx.lunasDate).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
 
-            let historyDetail = '';
-            if (paidCount > 0 && tx.paymentHistory) {
-                 historyDetail += '<div class="payment-history-list">';
-                 tx.paymentHistory.forEach((payment, idx) => {
-                     const formattedPaymentDate = new Date(payment.date).toLocaleDateString('id-ID');
-                     historyDetail += `<div><span>Cicilan ke-${idx + 1} (${formattedPaymentDate})</span></div>`;
-                 });
-                 historyDetail += '</div>';
-            }
-
-
             transactionDiv.innerHTML = `
-                <p><strong>[LUNAS] ${tx.type === 'utang' ? 'UTANG kepada' : 'PIUTANG dari'} ${tx.person}</strong></p>
-                <p>Pokok: Rp ${formatCurrency(tx.principal)} | Total Akhir: Rp ${formatCurrency(result.totalAmount)}</p>
-                <p>Lunas pada: <strong style="color: #333;">${formattedDate}</strong></p>
-                <p style="font-size:0.8em; margin-top: 8px;">(Total pembayaran ${paidCount}x dari ${tx.installmentsCount}x)</p>
-                
-                ${historyDetail}
-                
-                <div style="margin-top: 10px;">
-                    <button onclick="deleteTransaction(${index})" style="background-color: #dc3545; padding: 5px 8px; font-size: 0.8em;">Hapus Permanen</button>
+                <div class="avatar-icon">L</div>
+                <div class="info-section">
+                    <strong>${tx.person} (${tx.type === 'utang' ? 'Utang' : 'Piutang'})</strong>
+                    <p>
+                        <span class="status-badge" style="background-color: #e2e3e5; color: #6c757d;">LUNAS</span>
+                        Pokok: Rp ${formatCurrency(tx.principal)}
+                    </p>
+                </div>
+                <div class="amount-section">
+                    <span class="remaining-amount" style="color:#6c757d;">Rp ${formatCurrency(result.totalAmount)}</span>
+                    <p class="due-info">Lunas: ${formattedDate}</p>
+                    <button onclick="deleteTransaction(${index})" style="background-color: #dc3545; padding: 3px 6px; font-size: 0.7em; margin: 5px 0 0; display: block; float: right;">Hapus</button>
                 </div>
             `;
             historyListContainer.appendChild(transactionDiv);
@@ -819,7 +971,6 @@
     }
 
 
-    // FUNGSI GABUNGAN: Pencarian dan Pengurutan
     function filterTransactionList(pageType) {
         let container;
         let searchInput;
@@ -857,10 +1008,9 @@
 
 
     // ===================================
-    // 4. MANAJEMEN APLIKASI (Logic & Modal)
+    // 5. MANAJEMEN APLIKASI (Logic & Modal)
     // ===================================
 
-    // FUNGSI MODAL BARU
     function closeDetailModal() {
         document.getElementById('transactionDetailModal').style.display = 'none';
     }
@@ -872,8 +1022,6 @@
         const remainingInstallments = tx.installmentsCount - paidCount;
         const remainingTotal = result.totalPerInstallment * remainingInstallments;
         
-        // Menggunakan fungsi yang sudah diperbarui
-        const nextDueDate = calculateNextDueDate(tx);
         const finalDueDate = new Date(tx.startDate);
         finalDueDate.setMonth(finalDueDate.getMonth() + tx.installmentsCount); 
         
@@ -881,16 +1029,15 @@
         
         const lastPaymentIndex = paidCount - 1;
         const delayDays = calculateDelay(tx);
-        const delayIndicator = delayDays > 0 ? `<span class="late-indicator" style="margin-left: 0;">Terlambat ${delayDays} hari</span>` : '';
+        const delayIndicator = delayDays > 0 ? `<span class="status-badge status-late" style="margin-left: 10px;">Terlambat ${delayDays} hari</span>` : '';
         
-        // --- Konten Riwayat Pembayaran ---
         let paymentHistoryHTML = '';
         if (paidCount > 0) {
             paymentHistoryHTML += '<h4 style="border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-top: 15px; font-size: 1em;">Riwayat Pembayaran</h4>';
             paymentHistoryHTML += '<div class="payment-history-list">';
             tx.paymentHistory.forEach((payment, idx) => {
                 const formattedPaymentDate = new Date(payment.date).toLocaleDateString('id-ID');
-                const isLast = idx === lastPaymentIndex;
+                const isLast = idx === lastPaymentIndex && tx.status === 'aktif';
                 paymentHistoryHTML += `
                     <div>
                         <span>Cicilan ke-${idx + 1} (${formattedPaymentDate})</span>
@@ -901,7 +1048,6 @@
             paymentHistoryHTML += '</div>';
         }
 
-        // --- Konten Utama Modal ---
         document.getElementById('modalTitle').innerHTML = `${tx.type === 'utang' ? 'UTANG' : 'PIUTANG'} dari ${tx.person} ${delayIndicator}`;
         document.getElementById('modalContent').innerHTML = `
             <div class="modal-detail-row">
@@ -940,10 +1086,9 @@
             ${paymentHistoryHTML}
         `;
 
-        // --- Tombol Aksi Modal ---
         document.getElementById('modalActions').innerHTML = `
-            ${remainingInstallments > 0 ? `<button onclick="payInstallment(${index}); closeDetailModal()">Bayar Cicilan</button>` : ''}
-            <button onclick="markPaid(${index}); closeDetailModal()" style="background-color: #6c757d;">Tandai Lunas Penuh</button>
+            ${tx.status === 'aktif' && remainingInstallments > 0 ? `<button onclick="payInstallment(${index}); closeDetailModal()">Bayar Cicilan</button>` : ''}
+            ${tx.status === 'aktif' ? `<button onclick="markPaid(${index}); closeDetailModal()" style="background-color: #6c757d;">Tandai Lunas Penuh</button>` : ''}
         `;
 
         document.getElementById('transactionDetailModal').style.display = 'block';
@@ -963,7 +1108,7 @@
                 date: new Date().toISOString().slice(0, 10)
             });
             
-            alert(`Cicilan ke-${nextInstallmentNumber} untuk ${tx.person} berhasil dibayar pada ${tx.paymentHistory[tx.paymentHistory.length - 1].date}.`);
+            alert(`Cicilan ke-${nextInstallmentNumber} untuk ${tx.person} berhasil dibayar.`);
             
             if(tx.paymentHistory.length === tx.installmentsCount) {
                 tx.status = 'lunas';
@@ -994,7 +1139,7 @@
             }
             
             saveTransactions();
-            alert(`Pembayaran cicilan ke-${lastPayment.installment} (${new Date(lastPayment.date).toLocaleDateString('id-ID')}) untuk ${tx.person} berhasil dibatalkan.`);
+            alert(`Pembayaran cicilan ke-${lastPayment.installment} untuk ${tx.person} berhasil dibatalkan.`);
             refreshAllPagesAndCurrentView();
         }
     }
@@ -1006,18 +1151,21 @@
             if (!tx.paymentHistory) tx.paymentHistory = [];
             const paidCount = tx.paymentHistory.length;
             const remaining = tx.installmentsCount - paidCount;
-
-            for (let i = 0; i < remaining; i++) {
-                 tx.paymentHistory.push({
-                    installment: paidCount + i + 1,
-                    date: new Date().toISOString().slice(0, 10) 
-                 });
+            
+            if (remaining > 0) {
+                 for (let i = 0; i < remaining; i++) {
+                      tx.paymentHistory.push({
+                         installment: paidCount + i + 1,
+                         date: new Date().toISOString().slice(0, 10) 
+                      });
+                 }
             }
+
 
             tx.status = 'lunas';
             tx.lunasDate = new Date().toISOString().slice(0, 10); 
             saveTransactions();
-            alert(`Transaksi ${tx.person} berhasil ditandai Lunas Penuh (${remaining} cicilan dituntaskan) dan dipindahkan ke Riwayat!`);
+            alert(`Transaksi ${tx.person} berhasil ditandai Lunas Penuh dan dipindahkan ke Riwayat!`);
             refreshAllPagesAndCurrentView();
         }
     }
@@ -1034,7 +1182,6 @@
     form.addEventListener('submit', (e) => {
         e.preventDefault();
         
-        // Hitung tanggal jatuh tempo terakhir
         const calculatedDueDate = calculateDueDate();
 
         if (!calculatedDueDate) {
@@ -1043,7 +1190,7 @@
         }
 
         const principalFormatted = principalInput.value;
-        const principalClean = principalFormatted.replace(/\./g, ''); 
+        const principalClean = cleanPrincipal(principalFormatted); 
         const interestRateClean = cleanInterestRate(interestRateInput.value);
 
         const newTransaction = {
@@ -1053,9 +1200,8 @@
             interestRate: interestRateClean, 
             installmentsCount: parseInt(installmentsCountInput.value), 
             
-            // SIMPAN DATA BARU
             startDate: startDateInput.value, 
-            date: new Date().toISOString().slice(0, 10), // Tanggal input transaksi
+            date: new Date().toISOString().slice(0, 10), 
             
             status: 'aktif', 
             lunasDate: null,
@@ -1076,14 +1222,14 @@
         saveTransactions(); 
         form.reset(); 
         estimateDiv.style.display = 'none';
-        finalDueDateDisplay.textContent = 'Pilih tanggal mulai dan tenor/cicilan.'; // Reset display
+        finalDueDateDisplay.textContent = 'Pilih tanggal mulai dan tenor/cicilan.'; 
         alert("Transaksi berhasil dicatat!");
         refreshAllPagesAndCurrentView();
         showPage('homePage'); 
     });
     
     // ===================================
-    // 5. MANAJEMEN MULTI-PAGE
+    // 6. MANAJEMEN MULTI-PAGE & INIT
     // ===================================
     
     function showPage(pageId) {
@@ -1098,30 +1244,34 @@
             currentNav.classList.add('active');
         }
 
-        // Render data sesuai halaman
         if (pageId === 'homePage') {
-            document.getElementById('mainDashboard') && renderMainDashboard(); 
+            renderBalanceSummary(); // Memperbarui dashboard
+            renderLatestTransactions(); // Menampilkan transaksi terbaru
         } else if (pageId === 'piutangPage') {
             document.getElementById('searchPiutang').value = ''; 
-            document.getElementById('sortPiutang').value = 'due_asc'; // Default sort
+            document.getElementById('sortPiutang').value = 'due_asc'; 
             filterTransactionList('piutang');
         } else if (pageId === 'utangPage') {
             document.getElementById('searchUtang').value = ''; 
-            document.getElementById('sortUtang').value = 'due_asc'; // Default sort
+            document.getElementById('sortUtang').value = 'due_asc'; 
             filterTransactionList('utang');
         } else if (pageId === 'historyPage') { 
             document.getElementById('searchHistory').value = ''; 
-            document.getElementById('sortHistory').value = 'lunas_desc'; // Default sort
+            document.getElementById('sortHistory').value = 'lunas_desc'; 
             filterTransactionList('history');
         } else if (pageId === 'summaryPage') {
-             // document.getElementById('balanceSummary') && renderBalanceSummary();
+             renderBalanceSummary(); // Memperbarui ringkasan saldo global
         }
         
         if (pageId !== 'formPage') {
             estimateDiv && (estimateDiv.style.display = 'none');
         } else {
-             // Inisialisasi tampilan di halaman form
-             finalDueDateDisplay.textContent = 'Pilih tanggal mulai dan tenor/cicilan.'; 
+             // Set tanggal hari ini sebagai default di form
+             const today = new Date().toISOString().split('T')[0];
+             startDateInput.value = today;
+             document.getElementById('finalDueDateDisplay').textContent = 'Pilih tanggal mulai dan tenor/cicilan.'; 
+             updateInstallmentEstimate();
+             calculateDueDate();
         }
     }
 
@@ -1161,17 +1311,13 @@
         }
         if (!tx.paymentHistory) tx.paymentHistory = []; 
         
-        // MIGRASI DATA LAMA: Jika ada dueDate tapi tidak ada startDate, gunakan tanggal transaksi sebagai startDate.
         if (!tx.startDate && tx.dueDate) {
              tx.startDate = tx.date; 
-             // dueDate lama bisa dihapus karena sudah digantikan oleh kalkulasi
              delete tx.dueDate; 
         }
-        // Pastikan tx.startDate selalu ada untuk transaksi aktif/lunas
         if (!tx.startDate && tx.date) {
              tx.startDate = tx.date;
         }
-        
     });
     saveTransactions();
     showPage('homePage'); 

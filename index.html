@@ -4,22 +4,39 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Utang-Piutang Saya (Personal Finance Tracker)</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script> 
     <style>
-        body { font-family: sans-serif; margin: 0; background-color: #f4f4f9; display: flex; flex-direction: column; min-height: 100vh; }
-        .header { background-color: #007bff; color: white; padding: 15px; text-align: center; }
+        body { 
+            font-family: sans-serif; 
+            margin: 0; 
+            background-color: #f4f4f9; 
+            display: flex; 
+            flex-direction: column; 
+            min-height: 100vh; 
+        }
+        .header { 
+            background-color: #007bff; 
+            color: white; 
+            padding: 15px; 
+            text-align: center; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1); 
+        }
         
-        /* PENYESUAIAN UTAMA UNTUK RASIO 9:16 */
         .container { 
-            max-width: 450px; /* Lebar maksimum yang ideal untuk ponsel/rasio vertikal */
-            width: 95%; /* Memastikan kontainer mengisi hampir seluruh lebar layar */
-            margin: 20px auto; 
+            max-width: 450px; 
+            width: 100%; 
+            margin: 0 auto; 
             background: white; 
-            padding: 15px; /* Padding sedikit diperkecil */
-            border-radius: 8px; 
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
+            padding: 15px; 
+            border-radius: 0; 
+            box-shadow: none; 
             flex-grow: 1; 
+            overflow-y: auto; 
+            -webkit-overflow-scrolling: touch; 
+            padding-bottom: 70px; 
         }
         
         /* Navigasi Footer/Tab */
@@ -27,7 +44,6 @@
             position: fixed; 
             bottom: 0; 
             width: 100%; 
-            /* Batasi lebar navigasi agar sama dengan container jika layar lebar */
             max-width: 450px; 
             left: 50%;
             transform: translateX(-50%);
@@ -38,7 +54,6 @@
             box-shadow: 0 -2px 5px rgba(0,0,0,0.2);
             z-index: 10;
         }
-        /* Akhir Penyesuaian Navigasi */
         
         .nav-item { 
             color: #ccc; 
@@ -46,7 +61,7 @@
             flex-grow: 1;
             padding: 5px 0;
             cursor: pointer;
-            transition: color 0.3s;
+            transition: color 0.3s, background-color 0.3s; 
         }
         .nav-item:hover, .nav-item.active { 
             color: #007bff; 
@@ -55,14 +70,23 @@
         .nav-item h4 { margin: 0; font-size: 0.8em; } 
         
         /* Gaya Halaman dan Dashboard */
-        .page { display: none; padding-bottom: 70px; } 
+        .page { 
+            display: none; 
+        } 
         .page.active { display: block; }
-        h2 { border-bottom: 2px solid #ccc; padding-bottom: 10px; color: #333; margin-top: 0; font-size: 1.3em; } /* Font size sedikit kecil */
+        h2 { 
+            border-bottom: 2px solid #ccc; 
+            padding-bottom: 10px; 
+            color: #333; 
+            margin-top: 0; 
+            font-size: 1.3em; 
+            margin-bottom: 15px; 
+        } 
         
         #mainDashboard {
             display: flex;
-            flex-wrap: wrap; /* Izinkan wrap jika layar sangat kecil */
-            justify-content: space-between;
+            flex-wrap: wrap; 
+            justify-content: space-around; 
             margin-bottom: 15px;
             padding: 10px;
             border: 1px solid #ddd;
@@ -70,14 +94,14 @@
             background-color: #e9ecef;
         }
         .summary-card {
-            flex-basis: 32%; /* Sedikit lebih sempit */
-            padding: 8px 4px; /* Padding vertikal sedikit kecil */
+            flex-basis: 30%; 
+            padding: 8px 4px; 
             border-radius: 4px;
             text-align: center;
-            margin-bottom: 5px;
+            margin-bottom: 10px; 
         }
-        .summary-card h3 { margin-top: 0; font-size: 0.7em; color: #555; } /* Lebih kecil */
-        .summary-card p { font-size: 1.1em; font-weight: bold; margin: 3px 0 0; } /* Lebih kecil */
+        .summary-card h3 { margin-top: 0; font-size: 0.7em; color: #555; } 
+        .summary-card p { font-size: 1.1em; font-weight: bold; margin: 3px 0 0; } 
         
         .card-piutang { background-color: #d4edda; border: 1px solid #c3e6cb; }
         .card-utang { background-color: #f8d7da; border: 1px solid #f5c6cb; }
@@ -86,7 +110,7 @@
         /* Gaya untuk Ringkasan Saldo */
         .saldo-ringkasan {
             display: grid;
-            grid-template-columns: 1fr; /* Di layar kecil, buat 1 kolom */
+            grid-template-columns: 1fr; 
             gap: 10px;
             text-align: center;
         }
@@ -100,7 +124,6 @@
         .saldo-akhir { background-color: #ccffcc; }
         .net-worth-ringkasan { grid-column: 1 / 2; padding: 15px; font-size: 1.2em; font-weight: bold; background-color: #ffe0b2; border-radius: 8px; margin-top: 10px; }
         
-        /* Kembali ke 2 kolom di layar yang sedikit lebih lebar */
         @media (min-width: 400px) {
             .saldo-ringkasan {
                 grid-template-columns: 1fr 1fr;
@@ -112,12 +135,19 @@
 
         #chartArea {
             max-width: 100%; 
-            height: 250px; /* Tinggi Chart sedikit dikurangi */
+            height: 250px; 
             margin: 15px auto;
             padding: 10px;
             border: 1px solid #ddd;
             border-radius: 6px;
             background-color: white;
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+        }
+        #chartArea p {
+            margin: 0;
+            padding: 10px;
         }
 
         /* Form dan List Styles */
@@ -125,22 +155,51 @@
         label { display: block; margin-bottom: 4px; font-weight: bold; font-size: 0.9em; }
         input[type="text"], input[type="number"], input[type="date"], select {
             width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;
+            font-size: 1em; 
         }
         button { 
-            padding: 8px 12px; /* Tombol lebih ramping */
+            padding: 10px 15px; 
             background-color: #007bff; 
             color: white; 
             border: none; 
             border-radius: 4px; 
             cursor: pointer; 
-            margin-right: 8px; 
+            margin-right: 10px; 
+            font-size: 0.9em; 
         }
+        button:hover { background-color: #0056b3; } 
+
         .transaction { 
-            padding: 12px; /* Padding List lebih kecil */
+            padding: 12px; 
             margin-bottom: 8px; 
             border-left: 4px solid; 
+            background-color: #fff; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05); 
+            border-radius: 4px; 
         }
-        .installments { font-size: 0.8em; margin-top: 4px; padding-top: 4px; }
+        .transaction.lunas {
+            border-left-color: #adb5bd !important; /* Abu-abu untuk lunas */
+            opacity: 0.7; /* Sedikit transparan */
+            background-color: #f8f9fa;
+        }
+
+        .transaction p { margin: 5px 0; } 
+        .utang { border-left-color: #dc3545; } 
+        .piutang { border-left-color: #28a745; } 
+        .due-date { font-weight: bold; color: #ffc107; font-size: 0.9em; } 
+        .installments { font-size: 0.8em; color: #555; margin-top: 5px; border-top: 1px dashed #eee; padding-top: 5px; } 
+        
+        #installmentEstimate {
+            padding: 10px;
+            background-color: #e9f7ef;
+            border: 1px solid #d4edda;
+            border-radius: 4px;
+            margin-top: 15px;
+            font-weight: bold;
+            display: none; 
+            color: #28a745;
+            font-size: 0.95em; 
+        }
     </style>
 </head>
 <body>
@@ -178,16 +237,17 @@
                 </div>
                 <div>
                     <label for="principal">Jumlah Pokok (Rp):</label>
-                    <input type="text" id="principal" required onkeyup="formatInputRupiah(this)">
+                    <input type="text" id="principal" required onkeyup="formatInputRupiah(this); updateInstallmentEstimate()">
                 </div>
                 <div>
                     <label for="interestRate">Suku Bunga (% per Bulan):</label>
-                    <input type="number" id="interestRate" min="0" value="0" required>
+                    <input type="text" id="interestRate" min="0" value="0" required onkeyup="updateInstallmentEstimate()"> 
                 </div>
                 <div>
                     <label for="installmentsCount">Jumlah Cicilan (Bulan):</label>
-                    <input type="number" id="installmentsCount" min="1" value="1" required>
+                    <input type="number" id="installmentsCount" min="1" value="1" required onchange="updateInstallmentEstimate()">
                 </div>
+                <div id="installmentEstimate"></div>
                 <div>
                     <label for="dueDate">Tanggal Jatuh Tempo Terakhir:</label>
                     <input type="date" id="dueDate" required>
@@ -210,6 +270,13 @@
             </div>
         </div>
         
+        <div id="historyPage" class="page">
+            <h2>Riwayat Lunas (Piutang & Utang) 📜</h2>
+            <div id="historyList">
+                <p>Memuat riwayat lunas...</p>
+            </div>
+        </div>
+
         <div id="summaryPage" class="page">
             <h2>Ringkasan Saldo Awal dan Akhir 👑</h2>
             <div id="balanceSummary" class="saldo-ringkasan">
@@ -231,6 +298,9 @@
         <div class="nav-item" data-page="utangPage">
             <h4>❌ Utang</h4>
         </div>
+        <div class="nav-item" data-page="historyPage">
+            <h4>📜 Riwayat</h4>
+        </div>
         <div class="nav-item" data-page="summaryPage">
             <h4>👑 Ringkasan</h4>
         </div>
@@ -243,8 +313,15 @@
     const balanceSummaryContainer = document.getElementById('balanceSummary');
     const piutangListContainer = document.getElementById('piutangList');
     const utangListContainer = document.getElementById('utangList');
+    const historyListContainer = document.getElementById('historyList'); // ELEMEN BARU
     const navItems = document.querySelectorAll('.nav-item');
     
+    // Ambil elemen form
+    const principalInput = document.getElementById('principal');
+    const interestRateInput = document.getElementById('interestRate');
+    const installmentsCountInput = document.getElementById('installmentsCount');
+    const estimateDiv = document.getElementById('installmentEstimate');
+
     let piutangChartInstance = null; 
 
     // ===================================
@@ -280,11 +357,19 @@
         const roundedAmount = Math.round(parseFloat(amount)); 
         return roundedAmount.toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
     }
+    
+    function cleanInterestRate(input) {
+        return input.replace(/,/g, '.').replace(/[^0-9.]/g, ''); 
+    }
 
     function calculateTotal(principal, rate, installmentsCount) {
-        const principalAmount = parseFloat(principal);
+        const principalAmount = parseFloat(principal); 
         const interestRate = parseFloat(rate) / 100; 
         const installments = parseInt(installmentsCount);
+        
+        if (isNaN(principalAmount) || isNaN(interestRate) || isNaN(installments) || installments === 0) {
+            return { totalInterest: 0, totalAmount: 0, totalPerInstallment: 0, principalPerInstallment: 0 };
+        }
         
         const totalInterest = principalAmount * interestRate * installments;
         const totalAmount = principalAmount + totalInterest;
@@ -307,7 +392,10 @@
         let totalUtangAwal = 0;   
         let sisaUtang = 0;        
 
-        transactions.forEach(tx => {
+        // Hanya hitung transaksi yang aktif
+        const activeTransactions = transactions.filter(tx => tx.status === 'aktif');
+
+        activeTransactions.forEach(tx => {
             const result = calculateTotal(tx.principal, tx.interestRate, tx.installmentsCount);
             const remainingInstallments = tx.installmentsCount - tx.paidInstallments;
             const remainingTotal = result.totalPerInstallment * remainingInstallments;
@@ -329,6 +417,33 @@
             totalUtangAwal, sisaUtang,
             netWorthAwal, netWorthAkhir
         };
+    }
+    
+    function updateInstallmentEstimate() {
+        const principalFormatted = principalInput.value;
+        const principalClean = principalFormatted.replace(/\./g, ''); 
+        const rateClean = cleanInterestRate(interestRateInput.value); 
+        const installments = parseInt(installmentsCountInput.value);
+
+        if (!principalClean || !rateClean || installments < 1) {
+            estimateDiv.style.display = 'none';
+            return;
+        }
+
+        const result = calculateTotal(principalClean, rateClean, installments);
+
+        if (result.totalPerInstallment > 0) {
+            estimateDiv.style.display = 'block';
+            estimateDiv.innerHTML = `
+                <p style="margin: 0; font-size: 0.9em; color:#0056b3;">
+                    Estimasi Cicilan per Bulan (${installments}x): 
+                    <strong style="font-size: 1.1em;">Rp ${formatCurrency(result.totalPerInstallment)}</strong>
+                    <span style="font-size: 0.8em; color: #555;">(Total akhir: Rp ${formatCurrency(result.totalAmount)})</span>
+                </p>
+            `;
+        } else {
+             estimateDiv.style.display = 'none';
+        }
     }
 
 
@@ -461,17 +576,18 @@
         `;
     }
 
+    // FUNGSI RENDER LIST UTAMA (untuk Piutang Aktif dan Utang Aktif)
     function renderTransactionList(type, container) {
         container.innerHTML = ''; 
-        const filteredTransactions = transactions.filter(tx => tx.type === type);
+        // Filter: Tipe = yang diminta DAN Status = aktif
+        const filteredTransactions = transactions.filter(tx => tx.type === type && tx.status === 'aktif');
 
         if (filteredTransactions.length === 0) {
-            container.innerHTML = `<p>Belum ada transaksi ${type} yang dicatat.</p>`;
+            container.innerHTML = `<p style="text-align: center; color: #555; margin-top: 20px;">Belum ada transaksi ${type} yang aktif dicatat.</p>`;
             return;
         }
 
-        filteredTransactions.forEach((tx) => {
-            const originalIndex = transactions.findIndex(t => t === tx);
+        filteredTransactions.forEach((tx, originalIndex) => {
             
             const result = calculateTotal(tx.principal, tx.interestRate, tx.installmentsCount);
             const statusClass = tx.type === 'utang' ? 'utang' : 'piutang';
@@ -500,10 +616,41 @@
                 
                 <p class="due-date">Jatuh Tempo Terakhir: ${formattedDueDate}</p>
                 
-                ${remainingInstallments > 0 ? `<button onclick="payInstallment(${originalIndex})">Bayar Cicilan</button>` : ''}
-                <button onclick="markPaid(${originalIndex})" style="background-color: #6c757d;">Tandai Lunas Penuh</button>
+                ${remainingInstallments > 0 ? `<button onclick="payInstallment(${transactions.indexOf(tx)})">Bayar Cicilan</button>` : ''}
+                <button onclick="markPaid(${transactions.indexOf(tx)})" style="background-color: #6c757d;">Tandai Lunas Penuh</button>
             `;
             container.appendChild(transactionDiv);
+        });
+    }
+    
+    // FUNGSI BARU: Render Riwayat Lunas
+    function renderHistoryList() {
+        historyListContainer.innerHTML = '';
+        // Filter: Status = lunas
+        const historyTransactions = transactions.filter(tx => tx.status === 'lunas');
+        
+        if (historyTransactions.length === 0) {
+            historyListContainer.innerHTML = `<p style="text-align: center; color: #555; margin-top: 20px;">Belum ada riwayat transaksi lunas.</p>`;
+            return;
+        }
+        
+        historyTransactions.forEach(tx => {
+            const result = calculateTotal(tx.principal, tx.interestRate, tx.installmentsCount);
+            const statusClass = tx.type === 'utang' ? 'utang' : 'piutang';
+            
+            const transactionDiv = document.createElement('div');
+            transactionDiv.classList.add('transaction', statusClass, 'lunas'); // Tambah kelas 'lunas'
+            
+            const formattedDate = new Date(tx.lunasDate).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
+
+            transactionDiv.innerHTML = `
+                <p><strong>[LUNAS] ${tx.type === 'utang' ? 'UTANG kepada' : 'PIUTANG dari'} ${tx.person}</strong></p>
+                <p>Pokok: Rp ${formatCurrency(tx.principal)} | Total Akhir: Rp ${formatCurrency(result.totalAmount)}</p>
+                <p>Lunas pada: <strong style="color: #333;">${formattedDate}</strong></p>
+                <p style="font-size:0.8em; margin-top: 8px;">(Total cicilan ${tx.paidInstallments}x dari ${tx.installmentsCount}x)</p>
+                <button onclick="deleteTransaction(${transactions.indexOf(tx)})" style="background-color: #dc3545; padding: 5px 8px; font-size: 0.8em;">Hapus Permanen</button>
+            `;
+            historyListContainer.appendChild(transactionDiv);
         });
     }
 
@@ -515,6 +662,12 @@
         if (transactions[index].paidInstallments < transactions[index].installmentsCount) {
             transactions[index].paidInstallments++;
             alert(`Cicilan ke-${transactions[index].paidInstallments} untuk ${transactions[index].person} berhasil dibayar.`);
+            // Cek apakah cicilan sudah lunas semua setelah pembayaran
+            if(transactions[index].paidInstallments === transactions[index].installmentsCount) {
+                transactions[index].status = 'lunas';
+                transactions[index].lunasDate = new Date().toISOString().slice(0, 10);
+                alert(`Selamat! Transaksi ${transactions[index].person} telah lunas penuh!`);
+            }
             saveTransactions();
             refreshAllPagesAndCurrentView();
         } else {
@@ -523,10 +676,22 @@
     }
 
     function markPaid(index) {
-        if (confirm(`Apakah Anda yakin ingin menandai transaksi ${transactions[index].person} lunas penuh? Ini akan menghapusnya dari daftar aktif.`)) {
-            alert(`Transaksi ${transactions[index].person} berhasil ditandai Lunas Penuh!`);
-            transactions.splice(index, 1); 
+        if (confirm(`Apakah Anda yakin ingin menandai transaksi ${transactions[index].person} lunas penuh?`)) {
+            transactions[index].paidInstallments = transactions[index].installmentsCount; // Pastikan paid penuh
+            transactions[index].status = 'lunas';
+            transactions[index].lunasDate = new Date().toISOString().slice(0, 10); // Catat tanggal lunas
             saveTransactions();
+            alert(`Transaksi ${transactions[index].person} berhasil ditandai Lunas Penuh dan dipindahkan ke Riwayat!`);
+            refreshAllPagesAndCurrentView();
+        }
+    }
+    
+    // FUNGSI BARU: Hapus Permanen dari Riwayat
+    function deleteTransaction(index) {
+        if (confirm(`Apakah Anda yakin ingin MENGHAPUS PERMANEN riwayat transaksi ${transactions[index].person}? Tindakan ini tidak dapat dibatalkan.`)) {
+            transactions.splice(index, 1);
+            saveTransactions();
+            alert("Riwayat transaksi berhasil dihapus.");
             refreshAllPagesAndCurrentView();
         }
     }
@@ -534,31 +699,40 @@
     form.addEventListener('submit', (e) => {
         e.preventDefault();
 
-        const principalFormatted = document.getElementById('principal').value;
+        const principalFormatted = principalInput.value;
         const principalClean = principalFormatted.replace(/\./g, ''); 
-        
+        const interestRateClean = cleanInterestRate(interestRateInput.value);
+
         const newTransaction = {
             type: document.getElementById('type').value,
             person: document.getElementById('person').value,
             principal: principalClean, 
-            interestRate: document.getElementById('interestRate').value,
-            installmentsCount: parseInt(document.getElementById('installmentsCount').value), 
+            interestRate: interestRateClean, 
+            installmentsCount: parseInt(installmentsCountInput.value), 
             dueDate: document.getElementById('dueDate').value,
             date: new Date().toISOString().slice(0, 10), 
-            paidInstallments: 0 
+            paidInstallments: 0,
+            status: 'aktif', // TAMBAHAN STATUS BARU
+            lunasDate: null // TAMBAHAN TANGGAL LUNAS
         };
         
         if (!newTransaction.principal || parseFloat(newTransaction.principal) < 1 || newTransaction.installmentsCount < 1) {
             alert("Jumlah Pokok dan Jumlah Cicilan harus valid.");
             return;
         }
+        
+        if (isNaN(parseFloat(newTransaction.interestRate))) {
+             alert("Suku Bunga tidak valid.");
+             return;
+        }
 
         transactions.push(newTransaction);
         saveTransactions(); 
         form.reset(); 
+        estimateDiv.style.display = 'none'; 
         alert("Transaksi berhasil dicatat!");
         refreshAllPagesAndCurrentView();
-        showPage('homePage'); // Kembali ke halaman Beranda
+        showPage('homePage'); 
     });
     
     // ===================================
@@ -584,12 +758,17 @@
             renderTransactionList('piutang', piutangListContainer);
         } else if (pageId === 'utangPage') {
             renderTransactionList('utang', utangListContainer);
+        } else if (pageId === 'historyPage') { // KONDISI BARU
+            renderHistoryList();
         } else if (pageId === 'summaryPage') {
              renderBalanceSummary();
         }
+        
+        if (pageId !== 'formPage') {
+            estimateDiv.style.display = 'none';
+        }
     }
 
-    // Listener untuk Navigasi Footer
     navItems.forEach(item => {
         item.addEventListener('click', () => {
             const pageId = item.getAttribute('data-page');
@@ -598,13 +777,20 @@
     });
 
     function refreshAllPagesAndCurrentView() {
-        // Panggil showPage untuk me-refresh halaman yang sedang aktif
         const activePageId = document.querySelector('.page.active').id;
         showPage(activePageId); 
     }
     
     // INISIALISASI APLIKASI
     loadTransactions(); 
+    // Beri nilai 'aktif' jika transaksi lama belum memiliki status
+    transactions.forEach(tx => {
+        if (!tx.status) {
+            tx.status = 'aktif';
+            tx.lunasDate = null;
+        }
+    });
+    saveTransactions();
     showPage('homePage'); 
 </script>
 

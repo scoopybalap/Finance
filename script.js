@@ -2,8 +2,10 @@
 // VARIABEL GLOBAL DAN KONSTANTA
 // ===================================
 let transactions = [];
+// GANTI STORAGE KEY AGAR TIDAK BENTROK DENGAN LOGIKA LAMA ANDA
+const STORAGE_KEY = 'eximouse_finance_v5_full_payment'; 
 const FINE_RATE = 0.05; // 5% per bulan
-const STORAGE_KEY = 'eximouse_finance_v4'; // Kunci LocalStorage Baru
+const installmentPerMonth = 1; // Selalu 1x pembayaran per bulan
 
 // Elemen DOM Utama
 const pageTitle = document.getElementById('pageTitle');
@@ -23,15 +25,13 @@ const interestRateInput = document.getElementById('interestRate');
 const installmentsCountInput = document.getElementById('installmentsCount');
 const finalDueDateDisplay = document.getElementById('finalDueDateDisplay');
 const estimateDiv = document.getElementById('installmentEstimate');
-const startDateInput = document.getElementById('startDate'); // Mendapatkan input tanggal mulai
+const startDateInput = document.getElementById('startDate'); 
 
 // Variabel state modal
 let currentTxId = null;
-let currentPaymentData = { totalDue: 0, cumulativeInstallments: 0, totalFine: 0, installmentsToPay: 0 };
 let loanChartInstance = null;
 let notificationScheduler = null;
 
-// Konstanta Notifikasi
 const NOTIFICATION_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 jam
 
 // ===================================
@@ -77,12 +77,24 @@ function clearAllData() {
 // 2. FUNGSI UTILITAS DATA & FORMATTING
 // ===================================
 
+function cleanInterestRate(input) {
+    return String(input).replace(/,/g, '.').replace(/[^0-9.]/g, '');
+}
+
+function cleanPrincipal(input) {
+     // Mengatasi bug 1.000.1000 dengan menghapus semua titik kecuali titik desimal, lalu menghapus koma
+     const cleaned = String(input).replace(/[^\d]/g, ''); // Hapus semua non-digit
+     return parseFloat(cleaned || 0);
+}
+
+// PERBAIKAN: Fungsi format input rupiah
 function formatInputRupiah(inputElement) {
-    let angka = inputElement.value.replace(/\D/g, '');
-    if (!angka || angka === '0') {
+    let angka = inputElement.value.replace(/[^\d]/g, ''); // Hapus semua kecuali digit
+    if (!angka) {
         inputElement.value = '';
         return;
     }
+    // Format menjadi format ribuan Indonesia
     let formatted = new Intl.NumberFormat('id-ID').format(angka);
     inputElement.value = formatted;
 }
@@ -90,14 +102,6 @@ function formatInputRupiah(inputElement) {
 function formatCurrency(amount) {
     const roundedAmount = Math.round(parseFloat(amount) || 0);
     return roundedAmount.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).replace('IDR', 'Rp ');
-}
-
-function cleanInterestRate(input) {
-    return String(input).replace(/,/g, '.').replace(/[^0-9.]/g, '');
-}
-
-function cleanPrincipal(input) {
-     return parseFloat(String(input).replace(/\./g, '').replace(/,/g, '') || 0);
 }
 
 // Fungsi Perhitungan Utama: Total Pokok + Bunga
@@ -110,9 +114,11 @@ function calculateTotal(principal, rate, installmentsCount) {
         return { totalInterest: 0, totalAmount: 0, totalPerInstallment: 0 };
     }
 
+    // Bunga FLAT: Dihitung dari pokok awal
     const totalInterest = principalAmount * interestRate * installments;
     const totalAmount = principalAmount + totalInterest;
-    const totalPerInstallment = totalAmount / installments;
+    // Cicilan per bulan (Pokok + Bunga dibagi tenor)
+    const totalPerInstallment = totalAmount / installments; 
 
     return {
         totalInterest: totalInterest,
@@ -129,15 +135,17 @@ function calculateInstallmentDueDate(tx, installmentIndex) {
      const startDate = new Date(dateString + 'T00:00:00');
      const startDay = startDate.getDate();
 
+     // installmentIndex 1 = 1 bulan dari start, installmentIndex 2 = 2 bulan dari start, dst.
      const targetMonth = startDate.getMonth() + installmentIndex;
      const targetYear = startDate.getFullYear() + Math.floor(targetMonth / 12);
      const newMonth = targetMonth % 12;
 
      let dueDate = new Date(targetYear, newMonth, startDay);
 
-     // Penyesuaian tanggal akhir bulan
+     // Penyesuaian tanggal akhir bulan (misal: 31 Jan ke 28 Feb)
      if (dueDate.getMonth() !== newMonth) {
-          dueDate = new Date(targetYear, newMonth + 1, 0);
+          // Jika tanggal melebihi akhir bulan, gunakan hari terakhir bulan
+          dueDate = new Date(targetYear, newMonth + 1, 0); 
      }
 
      const year = dueDate.getFullYear();
@@ -149,92 +157,123 @@ function calculateInstallmentDueDate(tx, installmentIndex) {
 
 // Fungsi Penentuan Jatuh Tempo Cicilan Berikutnya (Aktif)
 function calculateNextDueDate(tx) {
-    const paidCount = tx.paymentHistory ? tx.paymentHistory.reduce((sum, p) => sum + (p.installmentsPaid || 1), 0) : 0;
-    const nextInstallmentIndex = paidCount + 1;
+    // Total cicilan yang sudah DIBAYAR (per cicilan/bulan)
+    const paidInstallmentCount = tx.paymentHistory ? tx.paymentHistory.reduce((sum, p) => sum + (p.installmentsCovered || 0), 0) : 0;
+    
+    // Cicilan berikutnya yang jatuh tempo
+    const nextInstallmentIndex = paidInstallmentCount + 1;
 
     if (nextInstallmentIndex > tx.installmentsCount) return null;
 
     return calculateInstallmentDueDate(tx, nextInstallmentIndex);
 }
 
-// Fungsi Perhitungan Denda Majemuk (Compounding Fine) - KRUSIAL
-function calculateCumulativePayment(tx, currentDateString) {
-    if (tx.status !== 'aktif') return { cumulativeInstallments: 0, totalFine: 0, totalOverdueInstallments: 0, fineDetails: [], remainingPrincipal: 0 };
+// FUNGSI UTAMA BARU: Menghitung Total Tunggakan + Denda MAJEMUK
+function calculateTotalDue(tx, currentDateString) {
+    if (tx.status !== 'aktif') return { totalDueAmount: 0, totalFine: 0, totalInstallmentsDue: 0, remainingBalance: 0, fineDetails: [], totalOverdueMonths: 0 };
 
     const totals = calculateTotal(tx.principal, tx.interestRate, tx.installmentsCount);
     const installmentAmount = totals.totalPerInstallment;
-
-    const paidTotalCount = tx.paymentHistory ? tx.paymentHistory.reduce((sum, p) => sum + (p.installmentsPaid || 1), 0) : 0;
-
-    let cumulativeInstallments = 0;
-    let totalFine = 0;
-    let fineDetails = [];
-    let totalOverdueInstallments = 0;
-
     const currentDate = new Date(currentDateString + 'T00:00:00');
     currentDate.setHours(0, 0, 0, 0);
 
+    // 1. Hitung Saldo Tunggakan Awal (Pokok+Bunga)
+    
+    // Total Cicilan yang SUDAH JATUH TEMPO
+    let installmentsDueCount = 0; 
     let firstOverdueDate = null;
-
-    // 1. Tentukan Cicilan yang SUDAH JATUH TEMPO
-    for (let i = paidTotalCount + 1; i <= tx.installmentsCount; i++) {
+    for (let i = 1; i <= tx.installmentsCount; i++) {
         const dueDateString = calculateInstallmentDueDate(tx, i);
         const dueDate = new Date(dueDateString + 'T00:00:00');
         dueDate.setHours(0, 0, 0, 0);
 
-        if (currentDate > dueDate) {
-             cumulativeInstallments += installmentAmount;
-             totalOverdueInstallments++;
+        if (currentDate >= dueDate) {
+             installmentsDueCount++;
              if (firstOverdueDate === null) firstOverdueDate = dueDate;
         } else {
              break;
         }
     }
+    
+    const totalInstallmentsDue = installmentsDueCount * installmentAmount;
 
-    // 2. Hitung Denda Majemuk (5% per bulan dari total tunggakan)
-    if (totalOverdueInstallments > 0 && firstOverdueDate !== null) {
+    // Total Nominal yang sudah dibayar (Pokok+Bunga+Denda)
+    const totalNominalPaid = tx.paymentHistory ? tx.paymentHistory.reduce((sum, p) => sum + p.amount + p.fine, 0) : 0;
+    
+    // SALDO TUNGGAKAN AKTIF (Pokok+Bunga + Denda yang belum lunas)
+    // Sisa tunggakan = (Total Tagihan Pokok+Bunga sampai saat ini) - (Total Nominal yang sudah dibayar)
+    // Jika hasilnya negatif, artinya ada kelebihan bayar.
+    let currentOverdueBalance = totalInstallmentsDue - totalNominalPaid;
 
-         const dateDiff = currentDate.getTime() - firstOverdueDate.getTime();
+    // 2. Hitung Denda Majemuk (Hanya jika ada tunggakan dan sudah terlambat)
+    let totalFine = 0;
+    let fineDetails = [];
+    let totalOverdueMonths = 0;
+
+    if (currentOverdueBalance > 0 && firstOverdueDate !== null) {
+         
+         // Denda dimulai sehari setelah jatuh tempo pertama yang terlambat
+         const startFineDate = new Date(firstOverdueDate.getTime() + (1000 * 60 * 60 * 24));
+         startFineDate.setHours(0, 0, 0, 0);
+         
+         // Bulan ke-1 terlambat dihitung mulai dari tanggal startFineDate sampai 1 bulan kemudian
+         // Contoh: JT 14 Nov. Denda mulai 15 Nov. Bulan ke-1 denda selesai 14 Des.
+         
+         const dateDiff = currentDate.getTime() - startFineDate.getTime();
+         // Menghitung bulan penuh terlambat sejak denda mulai berlaku
+         // Menggunakan 30 hari sebagai pendekatan satu bulan
          const daysLate = Math.floor(dateDiff / (1000 * 60 * 60 * 24));
-         // Menghitung bulan penuh terlambat sejak tanggal jatuh tempo pertama yang terlambat
-         const monthsLate = Math.floor(daysLate / 30); 
+         totalOverdueMonths = Math.floor(daysLate / 30) + 1; // Bulan berjalan dihitung 1
 
-         if (monthsLate > 0) {
+         let compoundingBalance = currentOverdueBalance; // Basis denda awal
 
-             let compoundingBalance = cumulativeInstallments; 
+         for (let i = 1; i <= totalOverdueMonths; i++) {
+             
+             // Tanggal jatuh tempo denda ke-i
+             const fineDueDate = new Date(startFineDate);
+             fineDueDate.setMonth(fineDueDate.getMonth() + i);
+             fineDueDate.setHours(0, 0, 0, 0);
 
-             for (let i = 1; i <= monthsLate; i++) {
-                 const currentFine = compoundingBalance * FINE_RATE;
-                 
-                 compoundingBalance += currentFine; // Denda ditambahkan ke basis (Majemuk)
-                 totalFine += currentFine;
-                 
-                 fineDetails.push({
-                     month: i,
-                     fine: Math.round(currentFine),
-                     basis: Math.round(compoundingBalance - currentFine)
-                 });
-             }
+             // Hentikan perhitungan denda jika sudah melewati tanggal hari ini
+             if (fineDueDate > currentDate) break; 
+
+             const currentFine = compoundingBalance * FINE_RATE;
+             
+             totalFine += currentFine;
+             compoundingBalance += currentFine; // Denda ditambahkan ke basis (Majemuk)
+             
+             fineDetails.push({
+                 month: i,
+                 fine: Math.round(currentFine),
+                 basis: Math.round(compoundingBalance - currentFine)
+             });
          }
     }
 
-    const totalPaidAmount = paidTotalCount * installmentAmount;
-    const remainingTotalAmount = totals.totalAmount - totalPaidAmount;
+    // Total yang harus dibayarkan (Tunggakan Pokok+Bunga + Total Denda yang baru dihitung)
+    const totalDueAmount = Math.max(0, currentOverdueBalance) + Math.max(0, totalFine);
+    
+    // Sisa Saldo Pokok + Bunga Awal
+    const totalPaidInstallmentCount = tx.paymentHistory ? tx.paymentHistory.reduce((sum, p) => sum + (p.installmentsCovered || 0), 0) : 0;
+    const totalRemainingPrincipalInterest = totals.totalAmount - (totalPaidInstallmentCount * installmentAmount);
+
 
     return {
-        cumulativeInstallments: Math.round(cumulativeInstallments),
-        totalFine: Math.round(totalFine),
-        totalOverdueInstallments: totalOverdueInstallments,
-        remainingPrincipal: Math.round(remainingTotalAmount),
-        fineDetails: fineDetails
+        totalDueAmount: Math.round(totalDueAmount), // Total yang harus dibayar saat ini (Tunggakan + Denda)
+        totalFine: Math.round(totalFine), // Total Denda yang baru dihitung
+        totalInstallmentsDue: Math.round(totalInstallmentsDue), // Total Pokok+Bunga yang sudah JT
+        remainingBalance: Math.round(totalRemainingPrincipalInterest), // Sisa total Pokok+Bunga keseluruhan
+        fineDetails: fineDetails,
+        totalOverdueMonths: totalOverdueMonths,
+        currentOverdueBalance: Math.round(currentOverdueBalance) // Saldo tunggakan Pokok+Bunga sebelum denda baru
     };
 }
 
 
 // ===================================
 // 3. NAVIGASI DAN SIDE MENU
+// (Sama seperti sebelumnya)
 // ===================================
-
 function closeSideMenu() {
     sideMenuModal.classList.remove('open');
     menuToggle.innerHTML = '<i class="fas fa-bars"></i>';
@@ -278,7 +317,7 @@ function getPageTitle(pageId) {
     switch(pageId) {
         case 'homePage': return 'Beranda';
         case 'activeLoansPage': return 'Daftar Pinjaman Aktif';
-        case 'historyPage': return 'Riwayat Pembayaran';
+        case 'historyPage': return 'Riwayat Lunas';
         case 'summaryPage': return 'Ringkasan Total Keuangan';
         case 'backupPage': return 'Export & Import Data';
         case 'formPage': return 'Tambah Catatan Baru';
@@ -290,6 +329,7 @@ function getPageTitle(pageId) {
 
 // ===================================
 // 4. LOGIKA FORM DAN CRUD
+// (Diperbarui untuk menggunakan formatInputRupiah yang sudah diperbaiki)
 // ===================================
 
 function updateInstallmentEstimate() {
@@ -370,9 +410,9 @@ function deleteTransaction(id) {
     }
 }
 
-
 // ===================================
 // 5. RENDER UTAMA DAN DASHBOARD
+// (Diperbarui untuk menggunakan calculateTotalDue)
 // ===================================
 
 function reRenderActivePage(pageId) {
@@ -416,8 +456,9 @@ function getFinancialTotals() {
         }
 
         if (tx.status === 'aktif') {
-            const cumulative = calculateCumulativePayment(tx, todayDate);
-            const remaining = cumulative.remainingPrincipal + cumulative.totalFine;
+            const dueData = calculateTotalDue(tx, todayDate);
+            // Sisa tagihan = Sisa Pokok+Bunga keseluruhan + Total Denda yang masih terhutang
+            const remaining = dueData.remainingBalance + dueData.totalFine; 
             
             if (tx.type === 'piutang') {
                 sisaPiutang += remaining;
@@ -434,6 +475,28 @@ function getFinancialTotals() {
         pokokUtangAwal: pokokUtangAwal,
         netWorthAkhir: sisaPiutang - sisaUtang
     };
+}
+
+// ... (renderSummaryCards, getChartData, renderChart, getDueStatus, renderLatestTransactions sama) ...
+
+function renderSummaryCards() {
+    const totals = getFinancialTotals();
+    const dashboard = document.getElementById('mainDashboard');
+
+    dashboard.innerHTML = `
+        <div class="summary-card card-piutang" onclick="navigateTo('activeLoansPage')">
+            <h3>Sisa Piutang (Klaim)</h3>
+            <p>${formatCurrency(totals.sisaPiutang)}</p>
+        </div>
+        <div class="summary-card card-utang" onclick="navigateTo('activeLoansPage')">
+            <h3>Sisa Utang (Kewajiban)</h3>
+            <p>${formatCurrency(totals.sisaUtang)}</p>
+        </div>
+        <div class="summary-card card-networth" onclick="navigateTo('summaryPage')">
+            <h3>Net Worth</h3>
+            <p style="color: ${totals.netWorthAkhir >= 0 ? 'var(--success-color)' : 'var(--danger-color)'}">${formatCurrency(totals.netWorthAkhir)}</p>
+        </div>
+    `;
 }
 
 function getChartData() {
@@ -454,26 +517,6 @@ function getChartData() {
     });
 
     return { piutangAktif, piutangLunas, utangAktif, utangLunas };
-}
-
-function renderSummaryCards() {
-    const totals = getFinancialTotals();
-    const dashboard = document.getElementById('mainDashboard');
-
-    dashboard.innerHTML = `
-        <div class="summary-card card-piutang" onclick="navigateTo('activeLoansPage')">
-            <h3>Sisa Piutang (Klaim)</h3>
-            <p>${formatCurrency(totals.sisaPiutang)}</p>
-        </div>
-        <div class="summary-card card-utang" onclick="navigateTo('activeLoansPage')">
-            <h3>Sisa Utang (Kewajiban)</h3>
-            <p>${formatCurrency(totals.sisaUtang)}</p>
-        </div>
-        <div class="summary-card card-networth" onclick="navigateTo('summaryPage')">
-            <h3>Net Worth</h3>
-            <p style="color: ${totals.netWorthAkhir >= 0 ? 'var(--success-color)' : 'var(--danger-color)'}">${formatCurrency(totals.netWorthAkhir)}</p>
-        </div>
-    `;
 }
 
 function renderChart() {
@@ -566,14 +609,14 @@ function renderLatestTransactions() {
     // Filter transaksi aktif dan urutkan berdasarkan jatuh tempo terdekat
     let activeLoans = transactions.filter(tx => tx.status === 'aktif').map(tx => {
         const nextDueDate = calculateNextDueDate(tx);
-        const cumulativePay = calculateCumulativePayment(tx, todayDate);
+        const dueData = calculateTotalDue(tx, todayDate);
         return {
             ...tx,
             nextDueDate: nextDueDate,
             daysUntilDue: nextDueDate ? Math.ceil((new Date(nextDueDate).getTime() - new Date(todayDate).getTime()) / (1000 * 60 * 60 * 24)) : Infinity,
-            isOverdue: cumulativePay.totalOverdueInstallments > 0
+            isOverdue: dueData.currentOverdueBalance > 0 // Cek tunggakan Pokok+Bunga
         };
-    }).filter(tx => tx.daysUntilDue >= -30 && tx.daysUntilDue <= 30 || tx.isOverdue); // Tampilkan yang mendekati 30 hari atau terlambat 30 hari
+    }).filter(tx => tx.daysUntilDue >= -30 && tx.daysUntilDue <= 30 || tx.isOverdue); // Tampilkan yang mendekati 30 hari atau terlambat
 
     activeLoans.sort((a, b) => {
         if (a.isOverdue && !b.isOverdue) return -1;
@@ -592,29 +635,31 @@ function renderLatestTransactions() {
         const isLate = tx.isOverdue || status.class === 'status-late';
         
         // Cek denda
-        const cumulativePay = calculateCumulativePayment(tx, todayDate);
+        const dueData = calculateTotalDue(tx, todayDate);
         let badge;
-        if (cumulativePay.totalFine > 0) {
-             badge = `<span class="status-badge status-fine">DENDA ${formatCurrency(cumulativePay.totalFine)}</span>`;
+        if (dueData.totalFine > 0) {
+             badge = `<span class="status-badge status-fine">DENDA ${formatCurrency(dueData.totalFine)}</span>`;
         } else if (isLate) {
              badge = `<span class="status-badge status-late">${status.badge}</span>`;
         } else {
              badge = `<span class="status-badge status-active">${status.badge}</span>`;
         }
+        
+        const totalDue = dueData.totalDueAmount;
 
         return `
             <div class="transaction-list-item ${tx.type}" onclick="showDetailModal('${tx.id}')">
                 <div class="avatar-icon" style="background-color: ${tx.type === 'piutang' ? 'var(--success-color)' : 'var(--danger-color)'};">${initials}</div>
                 <div class="info-section">
                     <strong>${tx.person} (${tx.type.toUpperCase()})</strong>
-                    <div class="due-info">Sisa: ${formatCurrency(cumulativePay.remainingPrincipal + cumulativePay.totalFine)}</div>
+                    <div class="due-info">Sisa Total: ${formatCurrency(dueData.remainingBalance + dueData.totalFine)}</div>
                     ${badge}
                 </div>
                 <div class="amount-section">
-                    <div class="remaining-amount">
-                        ${tx.nextDueDate ? new Date(tx.nextDueDate).toLocaleDateString('id-ID') : 'LUNAS'}
+                    <div class="remaining-amount" style="color: ${totalDue > 0 ? 'var(--danger-color)' : 'var(--primary-color)'};">
+                        ${formatCurrency(totalDue)}
                     </div>
-                    <div class="due-info">${isLate ? 'Segera Bayar' : 'Jatuh Tempo'}</div>
+                    <div class="due-info">${totalDue > 0 ? 'Wajib Bayar' : (tx.nextDueDate ? new Date(tx.nextDueDate).toLocaleDateString('id-ID') : 'LUNAS')}</div>
                 </div>
             </div>
         `;
@@ -662,7 +707,6 @@ function renderTransactionList(type = 'active') {
         return;
     }
 
-    // ... (logic render list item sama seperti di balasan sebelumnya)
     transactionsContainer.innerHTML = filteredList.map(tx => {
         const typeClass = tx.type;
         const initials = tx.person.split(' ').map(n => n[0]).join('').substring(0, 2);
@@ -671,23 +715,23 @@ function renderTransactionList(type = 'active') {
         let dueDisplay = 'LUNAS';
         let amountDisplay = formatCurrency(calculateTotal(tx.principal, tx.interestRate, tx.installmentsCount).totalAmount);
         let statusBadge = `<span class="status-badge status-paid">LUNAS</span>`;
-        let remainingAmount = 0;
+        let totalDue = 0;
+        let remainingTotalAmount = 0;
 
         if (tx.status === 'aktif') {
             const todayDate = new Date().toISOString().split('T')[0];
-            const cumulativePay = calculateCumulativePayment(tx, todayDate);
+            const dueData = calculateTotalDue(tx, todayDate);
             const status = getDueStatus(nextDueDate);
             
-            remainingAmount = cumulativePay.remainingPrincipal + cumulativePay.totalFine;
-            amountDisplay = formatCurrency(remainingAmount);
-            
+            totalDue = dueData.totalDueAmount;
+            remainingTotalAmount = dueData.remainingBalance + dueData.totalFine;
+            amountDisplay = formatCurrency(remainingTotalAmount); // Tampilkan sisa total
+
             dueDisplay = nextDueDate ? `J.T: ${new Date(nextDueDate).toLocaleDateString('id-ID')}` : 'Terakhir: -';
             
-            if (cumulativePay.totalFine > 0) {
+            if (dueData.totalFine > 0) {
                  statusBadge = `<span class="status-badge status-fine">DENDA</span>`;
-            } else if (status.badge === 'J.T HARI INI') {
-                 statusBadge = `<span class="status-badge status-late">J.T HARI INI</span>`;
-            } else if (status.class === 'status-late') {
+            } else if (status.badge === 'J.T HARI INI' || status.class === 'status-late') {
                  statusBadge = `<span class="status-badge status-late">${status.badge}</span>`;
             } else {
                  statusBadge = `<span class="status-badge status-active">${status.badge}</span>`;
@@ -703,10 +747,10 @@ function renderTransactionList(type = 'active') {
                     ${statusBadge}
                 </div>
                 <div class="amount-section">
-                    <div class="remaining-amount" style="color: ${tx.status === 'aktif' ? (remainingAmount > 0 ? 'var(--danger-color)' : 'var(--primary-color)') : 'var(--secondary-color)'};">
-                        ${amountDisplay}
+                    <div class="remaining-amount" style="color: ${tx.status === 'aktif' ? (totalDue > 0 ? 'var(--danger-color)' : 'var(--primary-color)') : 'var(--secondary-color)'};">
+                        ${formatCurrency(totalDue)}
                     </div>
-                    <div class="due-info">${dueDisplay}</div>
+                    <div class="due-info">${tx.status === 'aktif' ? `Tagihan Saat Ini` : dueDisplay}</div>
                 </div>
             </div>
         `;
@@ -717,6 +761,7 @@ function renderTransactionList(type = 'active') {
 
 // ===================================
 // 6. MODAL DETAIL & PEMBAYARAN
+// (Revisi Total untuk logika pembayaran parsial dan tombol BATALKAN)
 // ===================================
 
 function showDetailModal(id) {
@@ -729,14 +774,16 @@ function showDetailModal(id) {
     const modalActions = document.getElementById('modalActions');
     
     const totals = calculateTotal(tx.principal, tx.interestRate, tx.installmentsCount);
-    const paidCount = tx.paymentHistory ? tx.paymentHistory.reduce((sum, p) => sum + (p.installmentsPaid || 1), 0) : 0;
-    const remainingCount = tx.installmentsCount - paidCount;
+    
+    // Total Cicilan (Pokok+Bunga) yang sudah dicover oleh pembayaran
+    const paidInstallmentCount = tx.paymentHistory ? tx.paymentHistory.reduce((sum, p) => sum + (p.installmentsCovered || 0), 0) : 0;
+    const remainingCount = tx.installmentsCount - paidInstallmentCount;
 
     const todayDate = new Date().toISOString().split('T')[0];
-    const cumulativePay = calculateCumulativePayment(tx, todayDate);
+    const dueData = calculateTotalDue(tx, todayDate);
     
-    // Total Tagihan (Cicilan + Denda)
-    const totalDue = cumulativePay.cumulativeInstallments + cumulativePay.totalFine;
+    // Total Tagihan Wajib Bayar (Tunggakan Pokok+Bunga + Denda Majemuk)
+    const totalDue = dueData.totalDueAmount;
 
     modalTitle.innerHTML = `${tx.person} <span style="font-size:0.7em; font-weight:normal; color:var(--text-muted);">(${tx.type.toUpperCase()})</span>`;
 
@@ -752,24 +799,24 @@ function showDetailModal(id) {
 
         <div class="detail-section">
             <h3>Status Pembayaran</h3>
-            <div class="modal-detail-row"><span>Cicilan Dibayar</span><strong>${paidCount} dari ${tx.installmentsCount}</strong></div>
-            <div class="modal-detail-row"><span>Sisa Cicilan</span><strong>${remainingCount}x</strong></div>
-            <div class="modal-detail-row"><span>Sisa Total (Pokok+Bunga)</span><strong>${formatCurrency(cumulativePay.remainingPrincipal)}</strong></div>
-            <div class="modal-detail-row fine-info"><span>Total Denda Hari Ini</span><strong style="color:var(--danger-color);">${formatCurrency(cumulativePay.totalFine)}</strong></div>
-            <div class="modal-detail-row"><span>Tagihan Tertunggak (Pokok+Bunga)</span><strong>${formatCurrency(cumulativePay.cumulativeInstallments)}</strong></div>
-            <div class="modal-detail-row"><span>Tagihan Saat Ini (Tunggakan + Denda)</span><strong style="font-size:1.2em; color:var(--primary-color);">${formatCurrency(totalDue)}</strong></div>
+            <div class="modal-detail-row"><span>Cicilan Dicover</span><strong>${paidInstallmentCount} dari ${tx.installmentsCount}</strong></div>
+            <div class="modal-detail-row"><span>Sisa Total Pokok+Bunga</span><strong>${formatCurrency(dueData.remainingBalance)}</strong></div>
+            <div class="modal-detail-row fine-info"><span>Total Denda Saat Ini</span><strong style="color:var(--danger-color);">${formatCurrency(dueData.totalFine)}</strong></div>
+            <div class="modal-detail-row"><span>Tunggakan Pokok+Bunga (Belum Bayar)</span><strong>${formatCurrency(dueData.currentOverdueBalance)}</strong></div>
+            <div class="modal-detail-row"><span>Tagihan Wajib Bayar (Tunggakan + Denda)</span><strong style="font-size:1.2em; color:var(--primary-color);">${formatCurrency(totalDue)}</strong></div>
         </div>
     `;
     
     // Detail Denda Majemuk
-    if (cumulativePay.totalFine > 0) {
+    if (dueData.totalFine > 0) {
         let fineDetailList = '';
-        cumulativePay.fineDetails.forEach(d => {
+        dueData.fineDetails.forEach(d => {
             fineDetailList += `<p>Bulan ke-${d.month}: ${formatCurrency(d.basis)} x ${FINE_RATE*100}% = <strong>${formatCurrency(d.fine)}</strong></p>`;
         });
         htmlContent += `
              <div class="fine-details-box">
-                 <h4>RINCIAN DENDA MAJEMUK (5% per bulan)</h4>
+                 <h4>RINCIAN DENDA MAJEMUK (5% per bulan dari total tunggakan)</h4>
+                 <div style="font-size: 0.9em; margin-bottom: 5px;">Basis Awal Tunggakan: ${formatCurrency(dueData.currentOverdueBalance)}</div>
                  ${fineDetailList}
              </div>
         `;
@@ -778,11 +825,13 @@ function showDetailModal(id) {
     // Riwayat Pembayaran
     if (tx.paymentHistory && tx.paymentHistory.length > 0) {
         let historyList = tx.paymentHistory.map((p, index) => `
-             <div style="display:flex; justify-content:space-between; font-size:0.9em; padding: 5px 0; border-bottom:1px solid #eee;">
+             <div class="payment-history-item" style="display:flex; justify-content:space-between; font-size:0.9em; padding: 5px 0; border-bottom:1px solid #eee;">
                  <span>${index + 1}. Tgl ${new Date(p.date).toLocaleDateString('id-ID')}</span>
                  <span style="text-align:right;">
-                     Bayar: <strong>${formatCurrency(p.amount + p.fine)}</strong> (${p.installmentsPaid}x) 
+                     Bayar: <strong>${formatCurrency(p.amount + p.fine)}</strong> 
+                     ${p.installmentsCovered > 0 ? ` (${p.installmentsCovered}x cicilan)` : ''}
                      ${p.fine > 0 ? `<br><small style="color:var(--danger-color);">Denda: ${formatCurrency(p.fine)}</small>` : ''}
+                     <br><a href="#" onclick="undoLastPayment('${tx.id}', ${index}); event.stopPropagation();" style="color: var(--secondary-color); font-size: 0.8em;">[Batalkan]</a>
                  </span>
              </div>
         `).join('');
@@ -817,20 +866,44 @@ function closeDetailModal() {
     currentTxId = null;
 }
 
+function undoLastPayment(id, index) {
+    const tx = transactions.find(t => t.id === id);
+    if (!tx || !tx.paymentHistory || tx.paymentHistory.length === 0) return;
+    
+    const paymentToUndo = tx.paymentHistory[index];
+
+    if (confirm(`Yakin ingin membatalkan pembayaran sebesar ${formatCurrency(paymentToUndo.amount + paymentToUndo.fine)} pada tanggal ${new Date(paymentToUndo.date).toLocaleDateString('id-ID')}?`)) {
+        
+        // Hapus pembayaran dari riwayat
+        tx.paymentHistory.splice(index, 1);
+        
+        // Jika status sebelumnya LUNAS, kembalikan ke AKTIF
+        if (tx.status === 'lunas') {
+            tx.status = 'aktif';
+            delete tx.dateCompleted;
+        }
+
+        saveTransactions();
+        alert("Pembayaran berhasil dibatalkan.");
+        
+        // Muat ulang modal detail dan halaman aktif
+        closeDetailModal();
+        reRenderActivePage(document.querySelector('.page.active').id);
+    }
+}
+
 function showPaymentModal(id, totalDue) {
     const tx = transactions.find(t => t.id === id);
     if (!tx) return;
 
     closeDetailModal();
 
-    // Set nilai global state pembayaran
     currentTxId = id;
-    currentPaymentData.totalDue = totalDue; 
     
     // Render info tagihan
     paymentAmountDisplay.innerHTML = `
-        <p>Total Tagihan (Tunggakan + Denda)</p>
-        <p style="color: var(--danger-color);">${formatCurrency(totalDue)}</p>
+        <p>Total Tagihan Wajib Bayar (Tunggakan + Denda)</p>
+        <p style="color: var(--danger-color); font-size: 1.5em;">${formatCurrency(totalDue)}</p>
     `;
 
     // Set default tanggal hari ini
@@ -838,7 +911,7 @@ function showPaymentModal(id, totalDue) {
     
     // Set nominal default = total due (dibersihkan dari format rupiah)
     nominalPaidInput.value = totalDue.toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-    formatInputRupiah(nominalPaidInput);
+    formatInputRupiah(nominalPaidInput); // Panggil fungsi perbaikan format
 
     paymentModal.style.display = 'flex';
 }
@@ -862,67 +935,79 @@ function confirmPayment() {
         return;
     }
 
-    const installmentAmount = calculateTotal(tx.principal, tx.interestRate, tx.installmentsCount).totalPerInstallment;
+    const totals = calculateTotal(tx.principal, tx.interestRate, tx.installmentsCount);
+    const installmentAmount = totals.totalPerInstallment;
+    
+    const todayDate = new Date().toISOString().split('T')[0];
+    const dueData = calculateTotalDue(tx, todayDate); // Hitung ulang status saat ini
+
     let totalPaid = nominalPaidClean;
     let remainingPayment = totalPaid;
     let totalFinePaid = 0;
     let installmentsCovered = 0;
+    
+    // Saldo tunggakan Pokok+Bunga (sebelum denda baru)
+    let currentOverdueBalance = dueData.currentOverdueBalance; 
+    let totalFine = dueData.totalFine; // Total denda saat ini
 
-    const todayDate = new Date().toISOString().split('T')[0];
-    const cumulativePay = calculateCumulativePayment(tx, todayDate);
-
-    // 1. Bayar Denda (Jika Ada) - Denda dibayar duluan
-    if (cumulativePay.totalFine > 0) {
-        const fineToPay = Math.min(remainingPayment, cumulativePay.totalFine);
+    let alertMessage = `Pembayaran berhasil dicatat.`;
+    
+    // --- Pembayaran Parsial ---
+    
+    // 1. Bayar Denda (Jika Ada)
+    if (totalFine > 0) {
+        const fineToPay = Math.min(remainingPayment, totalFine);
         totalFinePaid = fineToPay;
         remainingPayment -= fineToPay;
+        totalFine -= fineToPay; // Sisa denda yang belum terbayar
+        alertMessage += ` Denda terbayar: ${formatCurrency(fineToPay)}.`;
     }
 
-    // 2. Bayar Cicilan (Pokok + Bunga)
-    if (remainingPayment > 0) {
-        const remainingInstallments = tx.installmentsCount - (tx.paymentHistory ? tx.paymentHistory.reduce((sum, p) => sum + (p.installmentsPaid || 1), 0) : 0);
-        const overdueInstallments = cumulativePay.totalOverdueInstallments;
-
-        // Hitung berapa cicilan yang bisa dicover
-        let maxCoverable = Math.floor(remainingPayment / installmentAmount);
-
-        if (overdueInstallments > 0) {
-             // Jika ada tunggakan, bayar tunggakan dulu
-             installmentsCovered = Math.min(maxCoverable, overdueInstallments);
-        } else {
-             // Jika tidak ada tunggakan, hanya boleh bayar 1 cicilan (cicilan bulan berjalan)
-             installmentsCovered = Math.min(maxCoverable, 1);
-        }
-
-        // Batasi maksimal sesuai sisa cicilan total
-        installmentsCovered = Math.min(installmentsCovered, remainingInstallments);
-        
-        const principalPaid = installmentsCovered * installmentAmount;
+    // 2. Bayar Tunggakan Pokok + Bunga
+    if (remainingPayment > 0 && currentOverdueBalance > 0) {
+        const principalPaid = Math.min(remainingPayment, currentOverdueBalance);
         remainingPayment -= principalPaid;
-    }
+        currentOverdueBalance -= principalPaid; // Sisa tunggakan Pokok+Bunga yang belum terbayar
+        alertMessage += ` Tunggakan Pokok+Bunga terbayar: ${formatCurrency(principalPaid)}.`;
 
-    if (installmentsCovered <= 0 && totalFinePaid <= 0) {
-        alert('Pembayaran gagal dicatat. Nominal terlalu kecil untuk menutupi denda atau cicilan.');
+        // Hitung berapa cicilan yang dicover (hanya untuk status lunas/progress)
+        // Ini adalah jumlah cicilan yang 'dicicil' untuk total progress
+        installmentsCovered = Math.floor(principalPaid / installmentAmount);
+    }
+    
+    // Catat Pembayaran
+    if (totalFinePaid > 0 || totalPaid - totalFinePaid > 0) {
+        if (!tx.paymentHistory) tx.paymentHistory = [];
+        tx.paymentHistory.push({
+            date: datePaid,
+            amount: Math.round(totalPaid - totalFinePaid), // Nominal untuk Pokok+Bunga
+            fine: Math.round(totalFinePaid), // Nominal untuk Denda
+            installmentsCovered: installmentsCovered, // Hanya untuk progress bar, bukan logika denda
+            remainingBalance: Math.round(remainingPayment) // Sisa uang kembali/lebih (jika ada)
+        });
+    } else {
+        alert('Pembayaran gagal dicatat. Nominal terlalu kecil.');
         return;
     }
 
-    if (!tx.paymentHistory) tx.paymentHistory = [];
-    tx.paymentHistory.push({
-        date: datePaid,
-        amount: Math.round(nominalPaidClean - totalFinePaid), 
-        fine: Math.round(totalFinePaid), 
-        installmentsPaid: installmentsCovered,
-        remainingBalance: Math.round(remainingPayment) // Sisa uang kembali (jika ada kelebihan)
-    });
 
-    const totalPaidCount = tx.paymentHistory.reduce((sum, p) => sum + (p.installmentsPaid || 1), 0);
-
-    if (totalPaidCount >= tx.installmentsCount) {
+    // Cek Status LUNAS
+    const totalPaidInstallmentCount = tx.paymentHistory.reduce((sum, p) => sum + (p.installmentsCovered || 0), 0);
+    const totalRemainingPrincipalInterest = totals.totalAmount - (totalPaidInstallmentCount * installmentAmount);
+    
+    // Jika Sisa total Pokok+Bunga <= 0 DAN Sisa Denda <= 0
+    if (totalRemainingPrincipalInterest <= 0 && totalFine <= 0) { 
         tx.status = 'lunas';
         tx.dateCompleted = datePaid;
-        alert(`Transaksi ${tx.person} LUNAS! Total cicilan dicover: ${totalPaidCount}.`);
+        alert(`Transaksi ${tx.person} LUNAS! Total cicilan dicover: ${totalPaidInstallmentCount}.`);
     } else {
-        alert(`Pembayaran berhasil dicatat! Dicover: **${installmentsCovered}** cicilan. Sisa ${tx.installmentsCount - totalPaidCount} cicilan. Kembalian: ${formatCurrency(Math.max(0, remainingPayment))}`);
+        // Tampilkan sisa yang belum terbayar
+        let remainingAlert = `Sisa Tunggakan Pokok+Bunga: ${formatCurrency(Math.max(0, currentOverdueBalance))}.`;
+        if (totalFine > 0) {
+            remainingAlert += ` Sisa Denda: ${formatCurrency(totalFine)}.`;
+        }
+        
+        alert(alertMessage + remainingAlert + (remainingPayment > 0 ? ` Kembalian: ${formatCurrency(remainingPayment)}` : ''));
     }
 
     saveTransactions();
@@ -930,10 +1015,11 @@ function confirmPayment() {
     reRenderActivePage(document.querySelector('.page.active').id);
 }
 
-// ===================================
-// 7. SUMMARY, EXPORT, IMPORT
-// ===================================
 
+// ===================================
+// 7. SUMMARY, EXPORT, IMPORT, NOTIFIKASI
+// (Sama seperti sebelumnya)
+// ===================================
 function renderSummaryPage() {
     const totals = getFinancialTotals();
     
@@ -956,7 +1042,7 @@ function renderBackupPageData() {
 function exportToCSV() {
     let csv = [];
     const headers = [
-        'ID', 'Tipe', 'Pihak', 'Pokok_Awal', 'Bunga_Rate', 'Tenor_Bulan', 'Tgl_Mulai', 'Status', 'Tgl_Lunas', 'Total_Tagihan_Termasuk_Bunga', 'Sisa_Tagihan_Aktif'
+        'ID', 'Tipe', 'Pihak', 'Pokok_Awal', 'Bunga_Rate', 'Tenor_Bulan', 'Tgl_Mulai', 'Status', 'Tgl_Lunas', 'Total_Tagihan_Termasuk_Bunga', 'Sisa_Tagihan_Keseluruhan'
     ];
     csv.push(headers.join(','));
 
@@ -964,13 +1050,14 @@ function exportToCSV() {
 
     transactions.forEach(tx => {
         const totals = calculateTotal(tx.principal, tx.interestRate, tx.installmentsCount);
-        const cumulativePay = tx.status === 'aktif' ? calculateCumulativePayment(tx, todayDate) : { remainingPrincipal: 0, totalFine: 0 };
-        const sisaTagihanAktif = tx.status === 'aktif' ? (cumulativePay.remainingPrincipal + cumulativePay.totalFine) : 0;
+        const dueData = tx.status === 'aktif' ? calculateTotalDue(tx, todayDate) : { remainingBalance: 0, totalFine: 0 };
+        // Sisa total = Sisa Pokok+Bunga keseluruhan + Total Denda
+        const sisaTagihanKeseluruhan = tx.status === 'aktif' ? (dueData.remainingBalance + dueData.totalFine) : 0; 
         
         const row = [
             tx.id,
             tx.type,
-            `"${tx.person}"`, // Menggunakan quote untuk nama
+            `"${tx.person}"`, 
             tx.principal,
             tx.interestRate,
             tx.installmentsCount,
@@ -978,7 +1065,7 @@ function exportToCSV() {
             tx.status,
             tx.dateCompleted || '',
             Math.round(totals.totalAmount),
-            Math.round(sisaTagihanAktif)
+            Math.round(sisaTagihanKeseluruhan)
         ];
         csv.push(row.join(','));
     });
@@ -991,6 +1078,8 @@ function exportToCSV() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    
+    alert('Data berhasil diexport ke CSV.');
 }
 
 function handleImport(event) {
@@ -998,7 +1087,7 @@ function handleImport(event) {
     if (!file) return;
 
     if (!confirm("PERINGATAN: Mengimpor data akan MENIMPA SEMUA DATA yang ada saat ini. Lanjutkan?")) {
-        event.target.value = null; // Clear file input
+        event.target.value = null; 
         return;
     }
 
@@ -1007,7 +1096,8 @@ function handleImport(event) {
         try {
             const importedData = JSON.parse(e.target.result);
             if (Array.isArray(importedData)) {
-                transactions = importedData;
+                // Hati-hati dengan format data, gunakan kunci STORAGE_KEY v5
+                transactions = importedData; 
                 saveTransactions();
                 localStorage.setItem('lastBackupDate', new Date().toISOString());
                 alert("Data berhasil diimpor! Halaman akan dimuat ulang.");
@@ -1021,33 +1111,19 @@ function handleImport(event) {
         }
     };
     reader.readAsText(file);
-    event.target.value = null; // Clear file input
+    event.target.value = null; 
 }
-
-// ===================================
-// 8. NOTIFIKASI (Dipertahankan)
-// ===================================
 
 function updateNotificationStatusDisplay() {
     const statusText = document.getElementById('notificationStatusText');
+    if (!statusText) return; 
+    
     if ('Notification' in window) {
         statusText.textContent = Notification.permission.toUpperCase();
         statusText.style.color = Notification.permission === 'granted' ? 'var(--success-color)' : (Notification.permission === 'denied' ? 'var(--danger-color)' : 'var(--warning-color)');
     } else {
         statusText.textContent = 'Tidak Didukung Browser';
         statusText.style.color = 'var(--secondary-color)';
-    }
-}
-
-function requestNotificationPermission() {
-    if ('Notification' in window) {
-        Notification.requestPermission().then(function(permission) {
-            updateNotificationStatusDisplay();
-            if (permission === 'granted') {
-                // Notifikasi scheduler dihidupkan jika izin diberikan
-                startNotificationScheduler();
-            }
-        });
     }
 }
 
@@ -1059,52 +1135,41 @@ function checkAndSendNotifications() {
 
     transactions.filter(tx => tx.status === 'aktif').forEach(tx => {
         const nextDueDate = calculateNextDueDate(tx);
-        if (!nextDueDate) return;
+        const dueData = calculateTotalDue(tx, todayDate);
 
-        const status = getDueStatus(nextDueDate);
-        const cumulativePay = calculateCumulativePayment(tx, todayDate);
-
-        if (cumulativePay.totalFine > 0) {
+        if (dueData.totalFine > 0) {
             new Notification(`⚠️ DENDA AKTIF: ${tx.person} (${tx.type})`, {
-                body: `Total tagihan tertunggak + denda: ${formatCurrency(cumulativePay.cumulativeInstallments + cumulativePay.totalFine)}`,
+                body: `Total tagihan tertunggak + denda: ${formatCurrency(dueData.totalDueAmount)}`,
                 icon: 'assets/icon.png'
             });
             notificationCount++;
-        } else if (status.class === 'status-late' || status.badge.includes('hari lagi')) {
-            new Notification(`🔔 Jatuh Tempo: ${tx.person} (${tx.type})`, {
-                body: `${status.badge}! Tagihan ${formatCurrency(cumulativePay.cumulativeInstallments)} akan segera jatuh tempo/terlambat.`,
-                icon: 'assets/icon.png'
-            });
-            notificationCount++;
+        } else if (nextDueDate) {
+            const status = getDueStatus(nextDueDate);
+            if (status.class === 'status-late' || status.badge.includes('hari lagi') || status.badge === 'J.T HARI INI') {
+                 new Notification(`🔔 Jatuh Tempo: ${tx.person} (${tx.type})`, {
+                    body: `${status.badge}! Tagihan Pokok+Bunga selanjutnya: ${formatCurrency(calculateTotal(tx.principal, tx.interestRate, tx.installmentsCount).totalPerInstallment)}.`,
+                    icon: 'assets/icon.png'
+                });
+                notificationCount++;
+            }
         }
     });
-
-    if (notificationCount === 0) {
-        // Notifikasi pasif jika tidak ada yang mendesak
-        // new Notification('Catatan Keuangan Aktif', {
-        //     body: 'Aplikasi berjalan di latar belakang. Cek status keuangan Anda!',
-        //     icon: 'assets/icon.png'
-        // });
-    }
 }
 
 function startNotificationScheduler() {
-    // Stop scheduler lama (jika ada)
     if (notificationScheduler) {
         clearInterval(notificationScheduler);
     }
     
     if (Notification.permission === 'granted') {
-        // Langsung cek saat startup
         checkAndSendNotifications(); 
-        // Set interval untuk pengecekan berkala
         notificationScheduler = setInterval(checkAndSendNotifications, NOTIFICATION_INTERVAL_MS);
     }
 }
 
 
 // ===================================
-// 9. EVENT LISTENER APLIKASI
+// 8. EVENT LISTENER APLIKASI
 // ===================================
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -1147,7 +1212,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 2. FORM & INPUT
     if (transactionForm) transactionForm.addEventListener('submit', submitForm);
-    if (principalInput) principalInput.addEventListener('input', updateInstallmentEstimate);
+    // Hapus event listener input untuk principalInput, karena sudah dihandel oleh oninput di HTML.
+    // Tambahkan kembali jika Anda menghapus oninput dari HTML
+    if (principalInput) principalInput.addEventListener('input', updateInstallmentEstimate); 
     if (interestRateInput) interestRateInput.addEventListener('input', updateInstallmentEstimate);
     if (installmentsCountInput) installmentsCountInput.addEventListener('input', updateInstallmentEstimate);
     if (startDateInput) startDateInput.addEventListener('input', updateInstallmentEstimate);

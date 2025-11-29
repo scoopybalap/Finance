@@ -1,33 +1,15 @@
 // js/auth.js
 import { showToast, showConfirmDialog } from './ui.js';
 
+// Fungsi kosong karena mode offline
 export function setupAuthListeners(auth) {
-    const btnLogin = document.getElementById('btn-google-login');
-    if(btnLogin) {
-        btnLogin.addEventListener('click', () => {
-            if(!window.firebaseLib) return;
-            const { signInWithPopup, GoogleAuthProvider } = window.firebaseLib;
-            const provider = new GoogleAuthProvider();
-            
-            document.getElementById('login-status').innerText = "Menghubungkan...";
-            
-            signInWithPopup(auth, provider)
-                .then((result) => {
-                    showToast("Login Berhasil!", "success");
-                }).catch((error) => {
-                    document.getElementById('login-status').innerText = "Gagal: " + error.message;
-                });
-        });
-    }
+    console.log("Auth listeners disabled (Offline Mode)");
 }
 
 export function logoutUser(auth) {
-    showConfirmDialog("Keluar dari akun? Sinkronisasi akan berhenti.", function() {
-        if(!window.firebaseLib) return;
-        const { signOut } = window.firebaseLib;
-        
-        signOut(auth).then(() => {
-            location.reload();
-        });
+    showConfirmDialog("Keluar dari aplikasi?", function() {
+        // Karena tidak ada firebase, kita hanya reload halaman
+        // Atau bisa reset data jika mau
+        location.reload();
     });
 }

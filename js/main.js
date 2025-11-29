@@ -1,22 +1,18 @@
 // js/main.js
-import { firebaseConfig } from './config.js';
-import { data, loadAppData, saveAppData, setupRealtimeListener } from './db.js';
-import { setupAuthListeners, logoutUser } from './auth.js';
+import { data, loadAppData, saveAppData } from './db.js';
 import * as UI from './ui.js'; 
 import { initMoneyInputs } from './utils.js';
 
 // --- REGISTER SERVICE WORKER (PWA) ---
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        // Menggunakan file yang sudah Anda punya (sw-register.js / sw.js)
-        // Pastikan path-nya sesuai
         navigator.serviceWorker.register('./sw.js')
-            .then(reg => console.log('SW Registered!', reg.scope))
+            .then(reg => console.log('SW Registered (Offline Mode)!', reg.scope))
             .catch(err => console.log('SW Failed', err));
     });
 }
 
-// --- EXPOSE TO WINDOW (Agar HTML bisa memanggil fungsi ini) ---
+// --- EXPOSE TO WINDOW ---
 window.navTo = UI.navTo;
 window.switchTab = UI.switchTab;
 window.openModal = UI.openModal;
@@ -28,12 +24,55 @@ window.toggleTheme = UI.toggleTheme;
 window.renderBudget = UI.renderBudget;
 window.onBudgetTypeChange = UI.onBudgetTypeChange;
 window.installApp = UI.installApp;
-window.refreshAds = UI.refreshAds;
 window.dismissInstall = UI.dismissInstall;
-window.logoutUser = () => { logoutUser(auth); };
+window.logoutUser = () => { location.reload(); };
 
 // --- MAIN INIT ---
-let auth, db;
+
+window.addEventListener('load', () => {
+    // 1. Matikan Loading Overlay segera
+    const loadingOverlay = document.getElementById('loading-overlay');
+    if(loadingOverlay) loadingOverlay.style.display = 'none';
+
+    // 2. Sembunyikan Layar Login (Pastikan user langsung masuk)
+    const loginScreen = document.getElementById('login-screen');
+    if(loginScreen) loginScreen.style.display = 'none';
+
+    // 3. Set User Dummy (Penting agar UI tidak error mencari uid)
+    window.currentUser = {
+        uid: 'offline-user-123',
+        displayName: 'User Lokal',
+        email: 'local@finpro.app'
+    };
+
+    // 4. Inisialisasi PWA Prompt
+    UI.initPWA();
+
+    // 5. Jalankan Aplikasi
+    startApp();
+});
+
+async function startApp() {
+    console.log("Memulai aplikasi dalam mode Offline/Lokal...");
+    
+    // Load data hanya dari LocalStorage
+    await loadAppData();
+    
+    UI.initTheme();
+    initMoneyInputs();
+    
+    // Render UI
+    UI.updateUI();
+    
+    // Set tanggal hari ini di input modal
+    const dateInput = document.getElementById('b-date');
+    if(dateInput) dateInput.value = new Date().toISOString().split('T')[0];
+    
+    // Refresh Ads jika ada
+    setTimeout(() => {
+        if (typeof window.refreshAds === 'function') window.refreshAds('page-home');
+    }, 1000);
+}
 
 window.addEventListener('load', () => {
     // Init PWA Prompt Logic

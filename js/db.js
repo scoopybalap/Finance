@@ -12,7 +12,7 @@ export let data = {
         { id: 2, name: 'Bank/ATM', type: 'bank', balance: 0 },
         { id: 3, name: 'E-Wallet', type: 'ewallet', balance: 0 }
     ],
-    // [BARU] Daftar Kategori Default
+    // Daftar Kategori Default
     categories: [
         { id: 'c1', type: 'expense', name: 'Makan', icon: 'fa-utensils', color: '#ff6b6b' },
         { id: 'c2', type: 'expense', name: 'Transport', icon: 'fa-bus', color: '#54a0ff' },
@@ -34,23 +34,21 @@ export function setData(newData) {
     data = newData;
 }
 
-// Load Data
-export async function loadAppData(currentUser, db) {
-    if (!currentUser || !window.firebaseLib) return; 
-    const { doc, getDoc } = window.firebaseLib;
-
+// [MODIFIED] Load Data (Hanya LocalStorage)
+export async function loadAppData() {
+    console.log("Mode Offline: Memuat data dari LocalStorage...");
+    
     try {
-        const docRef = doc(db, "users", currentUser.uid);
-        const docSnap = await getDoc(docRef);
-
-        if (docSnap.exists()) {
-            const cloudData = docSnap.data();
-            // Gabungkan data cloud dengan struktur lokal (agar kategori baru masuk)
-            data = { ...data, ...cloudData }; 
+        const localData = localStorage.getItem(APP_KEY);
+        if (localData) {
+            const parsedData = JSON.parse(localData);
+            // Merge data agar jika ada properti baru (seperti categories) tidak error
+            data = { ...data, ...parsedData };
             
-            // Cek jika user lama belum punya kategori, kita isi default
+            // Validasi Kategori jika user lama
             if(!data.categories || data.categories.length === 0) {
-                data.categories = [
+                 // Reset categories ke default jika hilang
+                 data.categories = [
                     { id: 'c1', type: 'expense', name: 'Makan', icon: 'fa-utensils', color: '#ff6b6b' },
                     { id: 'c2', type: 'expense', name: 'Transport', icon: 'fa-bus', color: '#54a0ff' },
                     { id: 'c3', type: 'expense', name: 'Belanja', icon: 'fa-shopping-bag', color: '#1dd1a1' },
@@ -64,26 +62,12 @@ export async function loadAppData(currentUser, db) {
                     { id: 'c11', type: 'income', name: 'Lainnya', icon: 'fa-box-open', color: '#8395a7' }
                 ];
             }
-            
-            console.log("Data loaded from Cloud/Cache");
-            localStorage.setItem(APP_KEY, JSON.stringify(data));
-        } else {
-            const localData = localStorage.getItem(APP_KEY);
-            if (localData) {
-                data = JSON.parse(localData);
-                saveAppData(currentUser, db); 
-            }
         }
-
     } catch (error) {
-        console.warn("Offline Mode (LocalStorage).");
-        const localData = localStorage.getItem(APP_KEY);
-        if (localData) {
-            data = JSON.parse(localData);
-        }
+        console.warn("Gagal memuat LocalStorage, menggunakan data default.");
     }
     
-    // Validasi Data Kosong
+    // Validasi Struktur Data Wajib
     if (!data.bills) data.bills = [];
     if (!data.wallets || data.wallets.length === 0) {
          data.wallets = [{ id: 1, name: 'Tunai', type: 'cash', balance: 0 }];
@@ -93,29 +77,14 @@ export async function loadAppData(currentUser, db) {
     }
 }
 
-export async function saveAppData(currentUser, db) {
+// [MODIFIED] Save Data (Hanya LocalStorage)
+export async function saveAppData() {
     localStorage.setItem(APP_KEY, JSON.stringify(data));
-    if (currentUser && window.firebaseLib && db) {
-        const { doc, setDoc } = window.firebaseLib;
-        try {
-            await setDoc(doc(db, "users", currentUser.uid), data);
-        } catch (error) {
-            console.error("Cloud sync failed:", error);
-        }
-    }
+    console.log("Data saved to LocalStorage");
 }
 
+// [MODIFIED] Realtime Listener (Dinonaktifkan)
 export function setupRealtimeListener(currentUser, db, onUpdateCallback) {
-    if (!currentUser || !window.firebaseLib) return;
-    const { doc, onSnapshot } = window.firebaseLib;
-    const docRef = doc(db, "users", currentUser.uid);
-
-    return onSnapshot(docRef, (docSnap) => {
-        if (docSnap.exists()) {
-            const cloudData = docSnap.data();
-            Object.assign(data, cloudData);
-            if (onUpdateCallback) onUpdateCallback();
-            localStorage.setItem(APP_KEY, JSON.stringify(data));
-        }
-    });
+    // Tidak melakukan apa-apa di mode offline
+    return () => {};
 }
